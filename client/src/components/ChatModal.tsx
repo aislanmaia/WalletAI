@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Bot, User, X } from 'lucide-react';
+import { Bot, User, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChatMessage } from '@/hooks/useAIChat';
