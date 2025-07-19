@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 interface GlobalAIInputProps {
   onSubmit: (message: string) => void;
   onOpenChat: () => void;
+  onFocus?: () => void;
 }
 
-export function GlobalAIInput({ onSubmit, onOpenChat }: GlobalAIInputProps) {
+export function GlobalAIInput({ onSubmit, onOpenChat, onFocus }: GlobalAIInputProps) {
   const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
 
@@ -38,6 +39,10 @@ export function GlobalAIInput({ onSubmit, onOpenChat }: GlobalAIInputProps) {
     }
   };
 
+  const handleInputFocus = () => {
+    onOpenChat();
+  };
+
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40">
       <div className="max-w-4xl mx-auto px-4 py-4">
@@ -51,6 +56,7 @@ export function GlobalAIInput({ onSubmit, onOpenChat }: GlobalAIInputProps) {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
+              onFocus={handleInputFocus}
               placeholder="Pergunte algo ou registre uma transação... (Ex: 'Gastei R$ 50 no almoço' ou 'Quanto gastei em supermercado?')"
               className="pl-10 pr-12 py-3 rounded-full text-sm placeholder-gray-500 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />

@@ -7,6 +7,7 @@ This is a modern financial dashboard application built with React, TypeScript, a
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+UX preferences: AI chat modal should open automatically when user focuses on the global input field for more intuitive interaction flow.
 
 ## System Architecture
 

@@ -84,6 +84,7 @@ export default function Dashboard() {
       <GlobalAIInput
         onSubmit={handleAISubmit}
         onOpenChat={() => setIsChatModalOpen(true)}
+        onFocus={() => setIsChatModalOpen(true)}
       />
 
       {/* Chat Modal */}
