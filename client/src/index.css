@@ -82,6 +82,40 @@
   .chat-message {
     animation: slideUp 0.3s ease-out;
   }
+  
+  /* Mobile-specific adjustments */
+  @media screen and (max-width: 768px) {
+    .chat-modal-container {
+      height: 100vh;
+      height: 100dvh; /* Dynamic viewport height for mobile */
+    }
+    
+    .chat-messages-mobile {
+      max-height: calc(100vh - 200px);
+      max-height: calc(100dvh - 200px);
+    }
+    
+    .chat-input-mobile {
+      position: fixed !important;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 60;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+      background: white;
+    }
+    
+    /* Prevent zoom on input focus for iOS */
+    input[type="text"] {
+      font-size: 16px !important;
+    }
+    
+    /* Ensure proper scrolling behavior */
+    .chat-modal-content {
+      overflow: hidden;
+    }
+  }
 }
 
 @layer utilities {
