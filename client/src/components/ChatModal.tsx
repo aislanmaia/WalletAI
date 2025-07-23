@@ -63,10 +63,10 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
       />
       
       {/* Modal content */}
-      <div className="relative h-full flex items-end justify-center md:p-4">
-        <div className="bg-white w-full h-full md:rounded-3xl md:max-w-4xl md:h-5/6 flex flex-col shadow-2xl chat-modal-fullscreen">
+      <div className="relative h-full flex items-center justify-center p-0 md:p-6">
+        <div className="bg-white w-full h-full md:rounded-2xl md:max-w-3xl md:h-4/5 flex flex-col shadow-2xl overflow-hidden chat-modal-mobile">
           {/* Chat Header */}
-          <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200 bg-white">
+          <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200 bg-white flex-shrink-0 chat-header-mobile">
             <div className="flex items-center space-x-3">
               <div className="bg-blue-500 p-2 rounded-full">
                 <Bot className="w-5 h-5 text-white" />
@@ -87,7 +87,7 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
           </div>
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 chat-messages-safe md:pb-4">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 chat-messages-mobile md:pb-4">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -136,7 +136,7 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
           </div>
 
           {/* Chat Input */}
-          <div className="sticky bottom-0 border-t border-gray-200 p-4 md:p-6 bg-white z-10 chat-input-safe-area">
+          <div className="border-t border-gray-200 p-4 md:p-6 bg-white flex-shrink-0 chat-input-mobile">
             <div className="flex items-center space-x-4">
               <div className="flex-1">
                 <Input
