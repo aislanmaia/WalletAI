@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Bot, User, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,6 @@ interface ChatModalProps {
 export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessing }: ChatModalProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -31,36 +30,7 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
     }
   }, [isOpen]);
 
-  // Detect virtual keyboard on mobile
-  useEffect(() => {
-    if (!isOpen) return;
 
-    const handleResize = () => {
-      if (window.visualViewport) {
-        const heightDiff = window.innerHeight - window.visualViewport.height;
-        setIsKeyboardOpen(heightDiff > 150); // Threshold for keyboard detection
-      } else {
-        // Fallback for browsers without visualViewport
-        const heightDiff = window.screen.height - window.innerHeight;
-        setIsKeyboardOpen(heightDiff > 150);
-      }
-    };
-
-    // Listen for viewport changes
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleResize);
-    } else {
-      window.addEventListener('resize', handleResize);
-    }
-
-    return () => {
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', handleResize);
-      } else {
-        window.removeEventListener('resize', handleResize);
-      }
-    };
-  }, [isOpen]);
 
   const handleSendMessage = () => {
     const input = inputRef.current;
@@ -86,17 +56,17 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
 
   return (
     <div className="fixed inset-0 z-50">
-      {/* Modal backdrop */}
+      {/* Modal backdrop - hidden on mobile */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-50 modal-backdrop"
+        className="absolute inset-0 bg-black bg-opacity-50 modal-backdrop hidden md:block"
         onClick={handleBackdropClick}
       />
       
       {/* Modal content */}
-      <div className="relative h-full flex items-end justify-center p-0 md:p-4">
-        <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-4xl chat-modal-container md:h-5/6 flex flex-col shadow-2xl chat-modal-content">
+      <div className="relative h-full flex items-end justify-center md:p-4">
+        <div className="bg-white w-full h-full md:rounded-3xl md:max-w-4xl md:h-5/6 flex flex-col shadow-2xl chat-modal-fullscreen">
           {/* Chat Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200 bg-white">
             <div className="flex items-center space-x-3">
               <div className="bg-blue-500 p-2 rounded-full">
                 <Bot className="w-5 h-5 text-white" />
@@ -117,7 +87,7 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
           </div>
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 pb-24 md:pb-4 chat-messages-mobile">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 chat-messages-safe md:pb-4">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -166,8 +136,8 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
           </div>
 
           {/* Chat Input */}
-          <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto border-t border-gray-200 p-4 md:p-6 bg-white md:bg-transparent chat-input-mobile">
-            <div className="flex items-center space-x-4 max-w-4xl mx-auto">
+          <div className="sticky bottom-0 border-t border-gray-200 p-4 md:p-6 bg-white z-10 chat-input-safe-area">
+            <div className="flex items-center space-x-4">
               <div className="flex-1">
                 <Input
                   ref={inputRef}
