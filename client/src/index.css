@@ -85,16 +85,6 @@
   
   /* Mobile-specific adjustments */
   @media screen and (max-width: 768px) {
-    /* Fullscreen modal on mobile with proper height control */
-    .chat-modal-mobile {
-      height: 100vh !important;
-      height: 100dvh !important;
-      max-height: 100vh !important;
-      max-height: 100dvh !important;
-      border-radius: 0 !important;
-      overflow: hidden;
-    }
-    
     /* Prevent zoom on input focus for iOS */
     input[type="text"] {
       font-size: 16px !important;
@@ -106,19 +96,15 @@
       min-height: 70px;
     }
     
-    /* Ensure chat messages area has proper height */
-    .chat-messages-mobile {
-      height: calc(100vh - 140px);
-      height: calc(100dvh - 140px);
-      max-height: calc(100vh - 140px);
-      max-height: calc(100dvh - 140px);
-      overflow-y: auto;
-    }
-    
     /* Chat header mobile adjustments */
     .chat-header-mobile {
       min-height: 70px;
       flex-shrink: 0;
+    }
+    
+    /* Mobile fullscreen modal */
+    .mobile-fullscreen {
+      border-radius: 0 !important;
     }
   }
 }

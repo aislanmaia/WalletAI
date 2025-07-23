@@ -3,6 +3,7 @@ import { Bot, User, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChatMessage } from '@/hooks/useAIChat';
+import { useViewportHeight } from '@/hooks/useViewportHeight';
 
 interface ChatModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface ChatModalProps {
 export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessing }: ChatModalProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { viewportHeight, isKeyboardOpen } = useViewportHeight(isOpen);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,6 +25,13 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Scroll to bottom when keyboard opens/closes to keep input visible
+  useEffect(() => {
+    if (isOpen && isKeyboardOpen) {
+      setTimeout(scrollToBottom, 300); // Delay to allow viewport to adjust
+    }
+  }, [isKeyboardOpen, isOpen]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -64,7 +73,17 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
       
       {/* Modal content */}
       <div className="relative h-full flex items-center justify-center p-0 md:p-6">
-        <div className="bg-white w-full h-full md:rounded-2xl md:max-w-3xl md:h-4/5 flex flex-col shadow-2xl overflow-hidden chat-modal-mobile">
+        <div 
+          className="bg-white w-full h-full md:rounded-2xl md:max-w-3xl md:h-4/5 flex flex-col shadow-2xl overflow-hidden mobile-fullscreen"
+          style={{
+            height: window.innerWidth <= 768 && viewportHeight > 0 
+              ? `${viewportHeight}px` 
+              : undefined,
+            maxHeight: window.innerWidth <= 768 && viewportHeight > 0 
+              ? `${viewportHeight}px` 
+              : undefined
+          }}
+        >
           {/* Chat Header */}
           <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200 bg-white flex-shrink-0 chat-header-mobile">
             <div className="flex items-center space-x-3">
@@ -87,7 +106,17 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
           </div>
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 chat-messages-mobile md:pb-4">
+          <div 
+            className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:pb-4"
+            style={{
+              height: window.innerWidth <= 768 && viewportHeight > 0 
+                ? `${viewportHeight - 140}px` 
+                : undefined,
+              maxHeight: window.innerWidth <= 768 && viewportHeight > 0 
+                ? `${viewportHeight - 140}px` 
+                : undefined
+            }}
+          >
             {messages.map((message) => (
               <div
                 key={message.id}
