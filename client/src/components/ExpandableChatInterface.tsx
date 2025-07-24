@@ -204,7 +204,7 @@ export function ExpandableChatInterface({ messages, onSendMessage, isProcessing 
                 <Button
                   onClick={handleSubmit}
                   disabled={!inputValue.trim() || isProcessing}
-                  className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full"
+                  className="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-full w-12 h-12 flex items-center justify-center"
                 >
                   <Send className="w-5 h-5" />
                 </Button>
