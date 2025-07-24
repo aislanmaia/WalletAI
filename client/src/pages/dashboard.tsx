@@ -5,13 +5,12 @@ import { ExpensePieChart } from '@/components/charts/ExpensePieChart';
 import { MonthlyLineChart } from '@/components/charts/MonthlyLineChart';
 import { IncomeExpenseBarChart } from '@/components/charts/IncomeExpenseBarChart';
 import { RecentTransactions } from '@/components/RecentTransactions';
-import { GlobalAIInput } from '@/components/GlobalAIInput';
-import { ChatModal } from '@/components/ChatModal';
+import { ExpandableChatInterface } from '@/components/ExpandableChatInterface';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useAIChat } from '@/hooks/useAIChat';
 
 export default function Dashboard() {
-  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+
   const [chartsLoading, setChartsLoading] = useState(true);
   
   const { 
@@ -31,10 +30,6 @@ export default function Dashboard() {
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
-
-  const handleAISubmit = (message: string) => {
-    processUserMessage(message, addTransaction);
-  };
 
   const handleSendChatMessage = (message: string) => {
     processUserMessage(message, addTransaction);
@@ -80,19 +75,10 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Global AI Input */}
-      <GlobalAIInput
-        onSubmit={handleAISubmit}
-        onOpenChat={() => setIsChatModalOpen(true)}
-        onFocus={() => setIsChatModalOpen(true)}
-        isChatOpen={isChatModalOpen}
-      />
-
-      {/* Chat Modal */}
-      <ChatModal
-        isOpen={isChatModalOpen}
-        onClose={() => setIsChatModalOpen(false)}
+      {/* Expandable Chat Interface */}
+      <ExpandableChatInterface
         messages={messages}
+        onSendMessage={handleSendChatMessage}
         isProcessing={isProcessing}
       />
     </div>
