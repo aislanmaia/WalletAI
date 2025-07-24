@@ -7,7 +7,7 @@ This is a modern financial dashboard application built with React, TypeScript, a
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
-UX preferences: AI chat modal should open automatically when user focuses on the global input field for more intuitive interaction flow.
+UX preferences: Chat interface must grow from the bottom global input (not as a centered modal) to maintain visual connection and keep cursor active in the original input field for seamless user experience.
 
 ## System Architecture
 
@@ -36,10 +36,11 @@ UX preferences: AI chat modal should open automatically when user focuses on the
 ## Key Components
 
 ### AI Chat System
-- **Global AI Input**: Fixed bottom input for natural language financial queries
-- **Chat Modal**: Full-screen chat interface with message history
+- **Global AI Input**: Fixed bottom input for natural language financial queries that remains active and connected
+- **Chat Panel**: Bottom-anchored chat interface that grows upward from the global input maintaining visual connection
 - **Voice Input**: Mock voice recognition capability
 - **Smart Processing**: Simulated AI responses for financial operations
+- **Responsive Design**: Mobile-optimized with dynamic height adjustment for virtual keyboard compatibility
 
 ### Financial Data Management
 - **Summary Cards**: Balance, income, expenses, and savings goal tracking

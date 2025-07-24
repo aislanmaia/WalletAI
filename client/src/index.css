@@ -106,6 +106,22 @@
     .mobile-fullscreen {
       border-radius: 0 !important;
     }
+    
+    /* Chat slide up animation */
+    .chat-slide-up {
+      animation: slideUpFromBottom 0.3s ease-out;
+    }
+  }
+  
+  @keyframes slideUpFromBottom {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 }
 

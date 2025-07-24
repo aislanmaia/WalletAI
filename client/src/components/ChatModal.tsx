@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Bot, User, X, Send } from 'lucide-react';
+import { Bot, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ChatMessage } from '@/hooks/useAIChat';
 import { useViewportHeight } from '@/hooks/useViewportHeight';
 
@@ -9,13 +8,11 @@ interface ChatModalProps {
   isOpen: boolean;
   onClose: () => void;
   messages: ChatMessage[];
-  onSendMessage: (message: string) => void;
   isProcessing: boolean;
 }
 
-export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessing }: ChatModalProps) {
+export function ChatModal({ isOpen, onClose, messages, isProcessing }: ChatModalProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const { viewportHeight, isKeyboardOpen } = useViewportHeight(isOpen);
 
   const scrollToBottom = () => {
@@ -33,27 +30,11 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
     }
   }, [isKeyboardOpen, isOpen]);
 
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
 
 
 
-  const handleSendMessage = () => {
-    const input = inputRef.current;
-    if (input && input.value.trim()) {
-      onSendMessage(input.value);
-      input.value = '';
-    }
-  };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSendMessage();
-    }
-  };
+
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -65,23 +46,23 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
 
   return (
     <div className="fixed inset-0 z-50">
-      {/* Modal backdrop - hidden on mobile */}
+      {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-50 modal-backdrop hidden md:block"
+        className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300"
         onClick={handleBackdropClick}
       />
       
-      {/* Modal content */}
-      <div className="relative h-full flex items-center justify-center p-0 md:p-6">
+      {/* Chat Panel - grows from bottom where global input is */}
+      <div className="fixed bottom-0 left-0 right-0 z-40">
         <div 
-          className="bg-white w-full h-full md:rounded-2xl md:max-w-3xl md:h-4/5 flex flex-col shadow-2xl overflow-hidden mobile-fullscreen"
+          className="bg-white w-full flex flex-col shadow-2xl overflow-hidden transition-all duration-300 ease-in-out md:mx-auto md:max-w-3xl md:rounded-t-2xl chat-slide-up"
           style={{
             height: window.innerWidth <= 768 && viewportHeight > 0 
-              ? `${viewportHeight}px` 
-              : undefined,
+              ? `${Math.min(viewportHeight - 20, window.innerHeight - 100)}px` 
+              : '80vh',
             maxHeight: window.innerWidth <= 768 && viewportHeight > 0 
-              ? `${viewportHeight}px` 
-              : undefined
+              ? `${Math.min(viewportHeight - 20, window.innerHeight - 100)}px` 
+              : '80vh'
           }}
         >
           {/* Chat Header */}
@@ -164,28 +145,8 @@ export function ChatModal({ isOpen, onClose, messages, onSendMessage, isProcessi
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Chat Input */}
-          <div className="border-t border-gray-200 p-4 md:p-6 bg-white flex-shrink-0 chat-input-mobile">
-            <div className="flex items-center space-x-4">
-              <div className="flex-1">
-                <Input
-                  ref={inputRef}
-                  type="text"
-                  onKeyPress={handleKeyPress}
-                  placeholder="Digite sua mensagem ou comando..."
-                  className="px-4 py-3 rounded-full text-sm placeholder-gray-500 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={isProcessing}
-                />
-              </div>
-              <Button
-                onClick={handleSendMessage}
-                disabled={isProcessing}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-full font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+          {/* Spacer to prevent content from being hidden behind global input */}
+          <div className="h-24 flex-shrink-0"></div>
         </div>
       </div>
     </div>

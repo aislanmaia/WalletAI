@@ -92,7 +92,6 @@ export default function Dashboard() {
         isOpen={isChatModalOpen}
         onClose={() => setIsChatModalOpen(false)}
         messages={messages}
-        onSendMessage={handleSendChatMessage}
         isProcessing={isProcessing}
       />
     </div>
