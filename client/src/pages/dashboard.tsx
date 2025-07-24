@@ -85,6 +85,7 @@ export default function Dashboard() {
         onSubmit={handleAISubmit}
         onOpenChat={() => setIsChatModalOpen(true)}
         onFocus={() => setIsChatModalOpen(true)}
+        isChatOpen={isChatModalOpen}
       />
 
       {/* Chat Modal */}

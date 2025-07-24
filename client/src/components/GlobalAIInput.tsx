@@ -7,9 +7,10 @@ interface GlobalAIInputProps {
   onSubmit: (message: string) => void;
   onOpenChat: () => void;
   onFocus?: () => void;
+  isChatOpen?: boolean;
 }
 
-export function GlobalAIInput({ onSubmit, onOpenChat, onFocus }: GlobalAIInputProps) {
+export function GlobalAIInput({ onSubmit, onOpenChat, onFocus, isChatOpen }: GlobalAIInputProps) {
   const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
 
@@ -44,8 +45,16 @@ export function GlobalAIInput({ onSubmit, onOpenChat, onFocus }: GlobalAIInputPr
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-      <div className="max-w-4xl mx-auto px-4 py-4">
+    <div 
+      className={`fixed bottom-0 left-0 right-0 bg-white shadow-lg z-50 transition-all duration-300 ${
+        isChatOpen ? 'border-t-0' : 'border-t border-gray-200'
+      }`}
+      style={{
+        borderTopLeftRadius: isChatOpen ? '0' : '0',
+        borderTopRightRadius: isChatOpen ? '0' : '0'
+      }}
+    >
+      <div className={`max-w-4xl mx-auto px-4 py-4 ${isChatOpen ? 'md:max-w-3xl' : ''}`}>
         <div className="flex items-center space-x-4">
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
