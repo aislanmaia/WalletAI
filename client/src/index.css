@@ -124,22 +124,12 @@
     }
   }
   
-  /* Expandable chat animation */
-  .chat-expand {
-    animation: expandUp 0.3s ease-out;
-  }
-  
-  @keyframes expandUp {
-    from {
-      height: auto;
-      transform: scale(1, 0);
-      transform-origin: bottom;
-    }
-    to {
-      height: 100%;
-      transform: scale(1, 1);
-      transform-origin: bottom;
-    }
+  /* Expandable chat smooth transition */
+  .chat-transition {
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s ease;
+    transform-origin: bottom center;
   }
 }
 
