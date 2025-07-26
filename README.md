@@ -22,7 +22,8 @@ src/
 │   ├── ui/            # Componentes base (shadcn/ui)
 │   └── ...            # Outros componentes
 ├── config/            # Configurações
-│   └── api.ts         # Configuração da API
+│   ├── api.ts         # Configuração da API
+│   └── demo.ts        # Configuração do modo demo
 ├── hooks/             # Custom hooks
 ├── lib/               # Utilitários e configurações
 ├── pages/             # Páginas da aplicação
@@ -54,6 +55,9 @@ Crie um arquivo `.env` na raiz do projeto:
 ```env
 # URL da API Backend
 VITE_API_BASE_URL=http://localhost:5000
+
+# Modo Demo (true/false)
+VITE_DEMO_MODE=true
 
 # Outras configurações
 VITE_APP_NAME=WalletAI
@@ -108,16 +112,17 @@ Este frontend é projetado para trabalhar com um backend separado. As APIs esper
 - **Transações Recentes**: Lista das últimas transações
 - **Chat IA**: Assistente inteligente para gestão financeira
 
-### Modo Offline
-- Dados de demonstração quando a API não está disponível
-- Interface responsiva e acessível
-- Estados de loading e erro bem definidos
+### Modo Demo
+- **Dados Demonstrativos**: Dados realistas para apresentações
+- **Interface Interativa**: Transações podem ser adicionadas/removidas
+- **Indicador Visual**: Badge "Modo Demo" no header
+- **Ativação Automática**: Quando não há backend configurado
 
 ### Chat IA
-- Interface de chat fixa na parte inferior
-- Processamento de linguagem natural
-- Registro automático de transações
-- Insights financeiros personalizados
+- **Interface de chat fixa** na parte inferior
+- **Processamento de linguagem natural**
+- **Registro automático de transações**
+- **Insights financeiros personalizados**
 
 ## 🔧 Desenvolvimento
 
@@ -158,6 +163,19 @@ O projeto pode ser deployado em qualquer serviço de hospedagem estática:
 - **Netlify**: `netlify deploy --prod`
 - **GitHub Pages**: Configure no GitHub Actions
 - **Firebase Hosting**: `firebase deploy`
+
+## 📋 Roadmap
+
+Para ver todas as melhorias planejadas e o roadmap de desenvolvimento, consulte o arquivo [ROADMAP.md](./ROADMAP.md).
+
+O roadmap inclui:
+- ✅ Melhorias de UX/UI
+- 🤖 Funcionalidades de IA avançadas
+- 📱 Recursos mobile-first
+- 🔐 Segurança e privacidade
+- 📊 Analytics e insights
+- 🎮 Gamificação e engajamento
+- 🔗 Integrações e conectividade
 
 ## 🤝 Contribuição
 
