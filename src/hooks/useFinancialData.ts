@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
+import { isDemoMode, getDemoData } from '../config/demo';
 
 export interface FinancialSummary {
   balance: number;
@@ -32,26 +33,28 @@ export interface MonthlyData {
 }
 
 export function useFinancialData() {
-  const [summary, setSummary] = useState<FinancialSummary>({
-    balance: 0,
-    income: 0,
-    expenses: 0,
-    savingsGoal: 0,
-    savingsProgress: 0
-  });
-
-  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const demoData = getDemoData();
+  
+  const [summary, setSummary] = useState<FinancialSummary>(demoData.summary);
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(demoData.expenseCategories);
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>(demoData.monthlyData);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(demoData.recentTransactions);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Carregar dados iniciais
+  // Carregar dados iniciais apenas se não estiver em modo demo
   useEffect(() => {
-    loadFinancialData();
+    if (!isDemoMode()) {
+      loadFinancialData();
+    }
   }, []);
 
   const loadFinancialData = async () => {
+    if (isDemoMode()) {
+      // Em modo demo, sempre usar dados demonstrativos
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -90,6 +93,27 @@ export function useFinancialData() {
   };
 
   const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date'>) => {
+    if (isDemoMode()) {
+      // Em modo demo, simular adição de transação
+      const newTransaction: Transaction = {
+        ...transaction,
+        id: Date.now().toString(),
+        date: new Date()
+      };
+      
+      setRecentTransactions(prev => [newTransaction, ...prev.slice(0, 4)]);
+      
+      // Atualizar resumo
+      setSummary(prev => ({
+        ...prev,
+        balance: prev.balance + transaction.amount,
+        income: transaction.type === 'income' ? prev.income + transaction.amount : prev.income,
+        expenses: transaction.type === 'expense' ? prev.expenses + Math.abs(transaction.amount) : prev.expenses
+      }));
+      
+      return true;
+    }
+
     try {
       const response = await apiService.createTransaction({
         ...transaction,
@@ -97,7 +121,6 @@ export function useFinancialData() {
       });
 
       if (response.success) {
-        // Recarregar dados após adicionar transação
         await loadFinancialData();
         return true;
       } else {
@@ -112,6 +135,14 @@ export function useFinancialData() {
   };
 
   const updateTransaction = async (id: string, transaction: Partial<Transaction>) => {
+    if (isDemoMode()) {
+      // Em modo demo, simular atualização
+      setRecentTransactions(prev => 
+        prev.map(t => t.id === id ? { ...t, ...transaction } : t)
+      );
+      return true;
+    }
+
     try {
       const response = await apiService.updateTransaction(id, transaction);
       
@@ -130,6 +161,12 @@ export function useFinancialData() {
   };
 
   const deleteTransaction = async (id: string) => {
+    if (isDemoMode()) {
+      // Em modo demo, simular remoção
+      setRecentTransactions(prev => prev.filter(t => t.id !== id));
+      return true;
+    }
+
     try {
       const response = await apiService.deleteTransaction(id);
       
@@ -157,6 +194,7 @@ export function useFinancialData() {
     addTransaction,
     updateTransaction,
     deleteTransaction,
-    refreshData: loadFinancialData
+    refreshData: loadFinancialData,
+    isDemoMode: isDemoMode()
   };
 }
