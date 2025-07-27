@@ -69,9 +69,8 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
   // Função para calcular posição Y de um nó
   const getNodeY = (nodeId: string, category: string) => {
     if (category === 'balance') {
-      // Nó do saldo fica centralizado verticalmente
-      const maxNodes = Math.max(incomeNodes.length, expenseNodes.length);
-      return 50 + (maxNodes * rowSpacing) / 2 - balanceNodeHeight / 2;
+      // Nó do saldo fica posicionado mais ao topo
+      return 50; // Posição ajustada para a nova altura maior
     }
     
     const nodesInCategory = data.nodes.filter(n => n.category === category);
@@ -92,7 +91,7 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
   // Calcular largura máxima dos links para normalização
   const maxLinkValue = Math.max(...data.links.map(link => link.value));
   const minLinkWidth = 1;
-  const maxLinkWidth = 15;
+  const maxLinkWidth = 8; // Reduzido de 15 para 8 para suavizar visualmente
 
   // Calcular largura total do SVG baseado no número de colunas
   const svgWidth = 50 + columnSpacing * 3 + 50; // 3 colunas + padding (mais largo no fullscreen)
@@ -154,7 +153,7 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
                   stroke="#3B82F6"
                   strokeWidth={linkWidth}
                   fill="none"
-                  opacity="0.6"
+                  opacity="0.4"
                 />
               );
             })}
@@ -181,7 +180,7 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
                   stroke={getNodeColor(expenseNode.category, expenseNode.type)}
                   strokeWidth={linkWidth}
                   fill="none"
-                  opacity="0.6"
+                  opacity="0.4"
                 />
               );
             })}
@@ -293,10 +292,10 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
                         {/* Texto principal */}
                         <text
                           x={x + balanceNodeWidth / 2}
-                          y={y + 25}
+                          y={y + balanceNodeHeight * 0.45}
                           textAnchor="middle"
                           fill="white"
-                          fontSize={isFullscreen ? "14" : "11"}
+                          fontSize={isFullscreen ? "16" : "12"}
                           fontWeight="700"
                         >
                           {balanceNode.name}
@@ -305,10 +304,10 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
                         {/* Valor */}
                         <text
                           x={x + balanceNodeWidth / 2}
-                          y={y + (isFullscreen ? 45 : 26)}
+                          y={y + balanceNodeHeight * 0.65}
                           textAnchor="middle"
                           fill="white"
-                          fontSize={isFullscreen ? "12" : "9"}
+                          fontSize={isFullscreen ? "14" : "10"}
                           fontWeight="600"
                           opacity="0.95"
                         >
