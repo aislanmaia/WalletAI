@@ -12,6 +12,8 @@ interface MoneyFlowSankeyChartProps {
 export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSankeyChartProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+
+
   if (isLoading) {
     return (
       <Card>
@@ -148,10 +150,42 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
             const x = getNodeX(node.category);
             const y = getNodeY(node.id, node.category);
 
-            // Calcular valor total do nó
-            const nodeValue = data.links
-              .filter(link => link.source === node.id || link.target === node.id)
-              .reduce((sum, link) => sum + link.value, 0);
+            // Calcular valor total do nó baseado na categoria
+            // Lógica: mostrar o valor que representa o nó no fluxo
+            let nodeValue = 0;
+            
+            if (node.category === 'source') {
+              // Para nós fonte (Receitas), somar apenas links outgoing
+              nodeValue = data.links
+                .filter(link => link.source === node.id)
+                .reduce((sum, link) => sum + link.value, 0);
+            } else if (node.category === 'income') {
+              // Para nós de receita (Salário, Freelance, etc.), somar apenas links incoming
+              nodeValue = data.links
+                .filter(link => link.target === node.id)
+                .reduce((sum, link) => sum + link.value, 0);
+            } else if (node.category === 'sink') {
+              // Para nós de destino, diferenciar por tipo:
+              // - "expenses": somar links outgoing (valor gasto)
+              // - "savings", "investments_out": somar links incoming (valor poupado/aplicado)
+              if (node.id === 'expenses') {
+                nodeValue = data.links
+                  .filter(link => link.source === node.id)
+                  .reduce((sum, link) => sum + link.value, 0);
+              } else {
+                // Para poupança e aplicações, somar links incoming
+                nodeValue = data.links
+                  .filter(link => link.target === node.id)
+                  .reduce((sum, link) => sum + link.value, 0);
+              }
+            } else if (node.category === 'expense') {
+              // Para nós de categoria de despesa, somar apenas links incoming
+              nodeValue = data.links
+                .filter(link => link.target === node.id)
+                .reduce((sum, link) => sum + link.value, 0);
+            }
+            
+
 
             return (
               <g key={node.id}>
@@ -261,7 +295,11 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-600">
               R$ {data.links
-                .filter(link => data.nodes.find(n => n.id === link.target)?.category === 'sink')
+                .filter(link => {
+                  const targetNode = data.nodes.find(n => n.id === link.target);
+                  return targetNode?.category === 'sink' && 
+                         (targetNode.id === 'savings' || targetNode.id === 'investments_out');
+                })
                 .reduce((sum, link) => sum + link.value, 0)
                 .toLocaleString()}
             </div>
