@@ -2,6 +2,8 @@
 export const DEMO_CONFIG = {
   // Flag para ativar modo demo
   ENABLE_DEMO: import.meta.env.VITE_DEMO_MODE === 'true' || !import.meta.env.VITE_API_BASE_URL,
+  // Flag para ativar dados de saldo negativo (para demonstração)
+  ENABLE_NEGATIVE_BALANCE: import.meta.env.VITE_NEGATIVE_BALANCE === 'true',
   
   // Dados de demonstração realistas
   DEMO_DATA: {
@@ -34,41 +36,47 @@ export const DEMO_CONFIG = {
     // Dados para gráfico Sankey (fluxo de dinheiro)
     moneyFlow: {
       nodes: [
-        { id: 'income', name: 'Receitas', category: 'source' },
         { id: 'salary', name: 'Salário', category: 'income' },
         { id: 'freelance', name: 'Freelance', category: 'income' },
         { id: 'investments', name: 'Investimentos', category: 'income' },
-        { id: 'expenses', name: 'Despesas', category: 'sink' },
-        { id: 'savings', name: 'Poupança', category: 'sink' },
-        { id: 'investments_out', name: 'Aplicações', category: 'sink' },
         { id: 'food', name: 'Alimentação', category: 'expense' },
         { id: 'transport', name: 'Transporte', category: 'expense' },
         { id: 'housing', name: 'Moradia', category: 'expense' },
         { id: 'leisure', name: 'Lazer', category: 'expense' },
         { id: 'health', name: 'Saúde', category: 'expense' },
-        { id: 'others', name: 'Outros', category: 'expense' }
+        { id: 'others', name: 'Outros', category: 'expense' },
+        { id: 'emergency_fund', name: 'Reserva de Emergência', category: 'expense', type: 'goal' },
+        { id: 'vacation_fund', name: 'Férias', category: 'expense', type: 'goal' },
+        { id: 'stock_investment', name: 'Ações', category: 'expense', type: 'investment' },
+        { id: 'crypto_investment', name: 'Criptomoedas', category: 'expense', type: 'investment' },
+        { id: 'education', name: 'Educação', category: 'expense' },
+        { id: 'entertainment', name: 'Entretenimento', category: 'expense' },
+        { id: 'clothing', name: 'Vestuário', category: 'expense' },
+        { id: 'technology', name: 'Tecnologia', category: 'expense' }
       ],
       links: [
-        // Receitas → Tipos de Receita (total: 8200)
-        { source: 'income', target: 'salary', value: 6500 },
-        { source: 'income', target: 'freelance', value: 1200 },
-        { source: 'income', target: 'investments', value: 500 },
-        
-        // Tipos de Receita → Despesas/Poupança/Aplicações (total: 8200)
-        { source: 'salary', target: 'expenses', value: 5200 },
-        { source: 'salary', target: 'savings', value: 800 },
-        { source: 'salary', target: 'investments_out', value: 500 },
-        { source: 'freelance', target: 'expenses', value: 400 },
-        { source: 'freelance', target: 'savings', value: 800 },
-        { source: 'investments', target: 'savings', value: 500 },
-        
-        // Despesas → Categorias (total: 5600)
-        { source: 'expenses', target: 'food', value: 1250 },
-        { source: 'expenses', target: 'transport', value: 800 },
-        { source: 'expenses', target: 'housing', value: 2100 },
-        { source: 'expenses', target: 'leisure', value: 450 },
-        { source: 'expenses', target: 'health', value: 680 },
-        { source: 'expenses', target: 'others', value: 320 }
+        // Receitas → Despesas (fluxo direto)
+        { source: 'salary', target: 'food', value: 1250 },
+        { source: 'salary', target: 'transport', value: 800 },
+        { source: 'salary', target: 'housing', value: 2100 },
+        { source: 'salary', target: 'leisure', value: 450 },
+        { source: 'salary', target: 'health', value: 680 },
+        { source: 'salary', target: 'others', value: 320 },
+        { source: 'salary', target: 'emergency_fund', value: 500 },
+        { source: 'salary', target: 'stock_investment', value: 300 },
+        { source: 'freelance', target: 'food', value: 300 },
+        { source: 'freelance', target: 'transport', value: 200 },
+        { source: 'freelance', target: 'leisure', value: 800 },
+        { source: 'freelance', target: 'health', value: 200 },
+        { source: 'freelance', target: 'others', value: 500 },
+        { source: 'freelance', target: 'vacation_fund', value: 400 },
+        { source: 'freelance', target: 'crypto_investment', value: 200 },
+        { source: 'investments', target: 'leisure', value: 200 },
+        { source: 'investments', target: 'others', value: 300 },
+        { source: 'salary', target: 'education', value: 400 },
+        { source: 'salary', target: 'entertainment', value: 300 },
+        { source: 'freelance', target: 'clothing', value: 250 },
+        { source: 'freelance', target: 'technology', value: 350 }
       ]
     },
     
@@ -189,5 +197,42 @@ export const isDemoMode = (): boolean => {
 
 // Função para obter dados de demo
 export const getDemoData = () => {
+  // Se a flag de saldo negativo estiver ativa, usar dados negativos
+  if (DEMO_CONFIG.ENABLE_NEGATIVE_BALANCE) {
+    return {
+      ...DEMO_CONFIG.DEMO_DATA,
+      moneyFlow: {
+        nodes: [
+          { id: 'salary', name: 'Salário', category: 'income' },
+          { id: 'freelance', name: 'Freelance', category: 'income' },
+          { id: 'food', name: 'Alimentação', category: 'expense' },
+          { id: 'transport', name: 'Transporte', category: 'expense' },
+          { id: 'housing', name: 'Moradia', category: 'expense' },
+          { id: 'leisure', name: 'Lazer', category: 'expense' },
+          { id: 'health', name: 'Saúde', category: 'expense' },
+          { id: 'others', name: 'Outros', category: 'expense' },
+          { id: 'credit_card', name: 'Cartão de Crédito', category: 'expense', type: 'debt' },
+          { id: 'personal_loan', name: 'Empréstimo Pessoal', category: 'expense', type: 'debt' }
+        ],
+        links: [
+          // Receitas (total: 5000)
+          { source: 'salary', target: 'food', value: 800 },
+          { source: 'salary', target: 'transport', value: 600 },
+          { source: 'salary', target: 'housing', value: 1800 },
+          { source: 'salary', target: 'leisure', value: 400 },
+          { source: 'salary', target: 'health', value: 300 },
+          { source: 'salary', target: 'others', value: 200 },
+          { source: 'freelance', target: 'food', value: 200 },
+          { source: 'freelance', target: 'transport', value: 150 },
+          { source: 'freelance', target: 'leisure', value: 600 },
+          { source: 'freelance', target: 'health', value: 150 },
+          { source: 'freelance', target: 'others', value: 300 },
+          { source: 'freelance', target: 'credit_card', value: 500 },
+          { source: 'freelance', target: 'personal_loan', value: 400 }
+        ]
+      }
+    };
+  }
+  
   return DEMO_CONFIG.DEMO_DATA;
 }; 

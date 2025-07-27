@@ -36,7 +36,8 @@ export interface MonthlyData {
 export interface MoneyFlowNode {
   id: string;
   name: string;
-  category: 'source' | 'income' | 'sink' | 'expense';
+  category: 'income' | 'expense' | 'balance';
+  type?: 'regular' | 'goal' | 'investment' | 'debt'; // Para diferenciar tipos de despesa
 }
 
 export interface MoneyFlowLink {
