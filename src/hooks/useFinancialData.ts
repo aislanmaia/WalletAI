@@ -32,6 +32,46 @@ export interface MonthlyData {
   expenses: number;
 }
 
+// Interfaces para os novos gráficos
+export interface MoneyFlowNode {
+  id: string;
+  name: string;
+  category: 'source' | 'income' | 'sink' | 'expense';
+}
+
+export interface MoneyFlowLink {
+  source: string;
+  target: string;
+  value: number;
+}
+
+export interface MoneyFlow {
+  nodes: MoneyFlowNode[];
+  links: MoneyFlowLink[];
+}
+
+export interface WeeklyExpenseHeatmap {
+  categories: string[];
+  days: string[];
+  data: number[][];
+}
+
+export interface DailyTransaction {
+  category: string;
+  amount: number;
+  description: string;
+}
+
+export interface DailyTransactions {
+  monday: DailyTransaction[];
+  tuesday: DailyTransaction[];
+  wednesday: DailyTransaction[];
+  thursday: DailyTransaction[];
+  friday: DailyTransaction[];
+  saturday: DailyTransaction[];
+  sunday: DailyTransaction[];
+}
+
 export function useFinancialData() {
   const demoData = getDemoData();
   
@@ -39,6 +79,9 @@ export function useFinancialData() {
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(demoData.expenseCategories);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>(demoData.monthlyData);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(demoData.recentTransactions);
+  const [moneyFlow, setMoneyFlow] = useState<MoneyFlow>(demoData.moneyFlow as MoneyFlow);
+  const [weeklyExpenseHeatmap, setWeeklyExpenseHeatmap] = useState<WeeklyExpenseHeatmap>(demoData.weeklyExpenseHeatmap as WeeklyExpenseHeatmap);
+  const [dailyTransactions, setDailyTransactions] = useState<DailyTransactions>(demoData.dailyTransactions as DailyTransactions);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +125,24 @@ export function useFinancialData() {
       const categoriesResponse = await apiService.getCategoriesReport();
       if (categoriesResponse.success && categoriesResponse.data) {
         setExpenseCategories(categoriesResponse.data as ExpenseCategory[]);
+      }
+
+      // Carregar dados de fluxo de dinheiro
+      const moneyFlowResponse = await apiService.getMoneyFlow();
+      if (moneyFlowResponse.success && moneyFlowResponse.data) {
+        setMoneyFlow(moneyFlowResponse.data as MoneyFlow);
+      }
+
+      // Carregar dados de heatmap semanal
+      const heatmapResponse = await apiService.getWeeklyHeatmap();
+      if (heatmapResponse.success && heatmapResponse.data) {
+        setWeeklyExpenseHeatmap(heatmapResponse.data as WeeklyExpenseHeatmap);
+      }
+
+      // Carregar transações diárias
+      const dailyTransactionsResponse = await apiService.getDailyTransactions();
+      if (dailyTransactionsResponse.success && dailyTransactionsResponse.data) {
+        setDailyTransactions(dailyTransactionsResponse.data as DailyTransactions);
       }
 
     } catch (err) {
@@ -189,6 +250,9 @@ export function useFinancialData() {
     expenseCategories,
     monthlyData,
     recentTransactions,
+    moneyFlow,
+    weeklyExpenseHeatmap,
+    dailyTransactions,
     loading,
     error,
     addTransaction,

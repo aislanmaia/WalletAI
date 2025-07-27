@@ -49,6 +49,9 @@ export const API_CONFIG = {
       MONTHLY: '/api/reports/monthly',
       CATEGORIES: '/api/reports/categories',
       TRENDS: '/api/reports/trends',
+      MONEY_FLOW: '/api/reports/money-flow',
+      WEEKLY_HEATMAP: '/api/reports/weekly-heatmap',
+      DAILY_TRANSACTIONS: '/api/reports/daily-transactions',
     },
     
     // Chat IA

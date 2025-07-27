@@ -4,6 +4,8 @@ import { SummaryCards } from '@/components/SummaryCards';
 import { ExpensePieChart } from '@/components/charts/ExpensePieChart';
 import { MonthlyLineChart } from '@/components/charts/MonthlyLineChart';
 import { IncomeExpenseBarChart } from '@/components/charts/IncomeExpenseBarChart';
+import { MoneyFlowSankeyChart } from '@/components/charts/MoneyFlowSankeyChart';
+import { WeeklyExpenseHeatmapChart } from '@/components/charts/WeeklyExpenseHeatmap';
 import { RecentTransactions } from '@/components/RecentTransactions';
 import { ExpandableChatInterface } from '@/components/ExpandableChatInterface';
 import { useFinancialData } from '@/hooks/useFinancialData';
@@ -18,7 +20,9 @@ export default function Dashboard() {
     summary, 
     expenseCategories, 
     monthlyData, 
-    recentTransactions, 
+    recentTransactions,
+    moneyFlow,
+    weeklyExpenseHeatmap,
     loading,
     error,
     addTransaction,
@@ -128,6 +132,15 @@ export default function Dashboard() {
           <MonthlyLineChart data={monthlyData} isLoading={chartsLoading} />
           <IncomeExpenseBarChart data={monthlyData} isLoading={chartsLoading} />
           <RecentTransactions transactions={recentTransactions} />
+        </div>
+
+        {/* Advanced Charts Section */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Análises Avançadas</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <MoneyFlowSankeyChart data={moneyFlow} isLoading={chartsLoading} />
+            <WeeklyExpenseHeatmapChart data={weeklyExpenseHeatmap} isLoading={chartsLoading} />
+          </div>
         </div>
       </main>
 

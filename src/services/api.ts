@@ -109,6 +109,19 @@ class ApiService {
     return this.request(buildApiUrl(API_CONFIG.ENDPOINTS.REPORTS.CATEGORIES));
   }
 
+  // Métodos para novos gráficos
+  async getMoneyFlow() {
+    return this.request(buildApiUrl(API_CONFIG.ENDPOINTS.REPORTS.MONEY_FLOW));
+  }
+
+  async getWeeklyHeatmap() {
+    return this.request(buildApiUrl(API_CONFIG.ENDPOINTS.REPORTS.WEEKLY_HEATMAP));
+  }
+
+  async getDailyTransactions() {
+    return this.request(buildApiUrl(API_CONFIG.ENDPOINTS.REPORTS.DAILY_TRANSACTIONS));
+  }
+
   // Métodos para IA
   async sendChatMessage(message: string) {
     return this.request(buildApiUrl(API_CONFIG.ENDPOINTS.AI.CHAT), {
