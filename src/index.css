@@ -16,7 +16,7 @@
   --card-foreground: hsl(20, 14.3%, 4.1%);
   --border: hsl(20, 5.9%, 90%);
   --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(207, 90%, 54%);
+  --primary: hsl(243, 75%, 59%);
   --primary-foreground: hsl(211, 100%, 99%);
   --secondary: hsl(60, 4.8%, 95.9%);
   --secondary-foreground: hsl(24, 9.8%, 10%);
@@ -26,13 +26,13 @@
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.5rem;
-  --success: hsl(142, 76%, 36%);
+  --success: hsl(142, 70%, 41%);
   --success-foreground: hsl(138, 62%, 97%);
   --warning: hsl(43, 96%, 56%);
   --warning-foreground: hsl(48, 96%, 12%);
-  --info: hsl(199, 89%, 48%);
+  --info: hsl(214, 95%, 58%);
   --info-foreground: hsl(201, 96%, 97%);
-  --purple: hsl(262, 83%, 58%);
+  --purple: hsl(259, 84%, 60%);
   --purple-foreground: hsl(270, 95%, 97%);
   --pink: hsl(328, 86%, 70%);
   --pink-foreground: hsl(326, 78%, 12%);

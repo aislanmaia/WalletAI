@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, User, AlertCircle, Sparkles } from 'lucide-react';
 import { SummaryCards } from '@/components/SummaryCards';
-import { ExpensePieChart } from '@/components/charts/ExpensePieChart';
-import { MonthlyLineChart } from '@/components/charts/MonthlyLineChart';
-import { IncomeExpenseBarChart } from '@/components/charts/IncomeExpenseBarChart';
-import { MoneyFlowSankeyChart } from '@/components/charts/MoneyFlowSankeyChart';
-import { WeeklyExpenseHeatmapChart } from '@/components/charts/WeeklyExpenseHeatmap';
+import { Suspense, lazy } from 'react';
+const ExpensePieChart = lazy(() => import('@/components/charts/ExpensePieChart').then(m => ({ default: m.ExpensePieChart })));
+const MonthlyLineChart = lazy(() => import('@/components/charts/MonthlyLineChart').then(m => ({ default: m.MonthlyLineChart })));
+const IncomeExpenseBarChart = lazy(() => import('@/components/charts/IncomeExpenseBarChart').then(m => ({ default: m.IncomeExpenseBarChart })));
+const MoneyFlowSankeyChart = lazy(() => import('@/components/charts/MoneyFlowSankeyChart').then(m => ({ default: m.MoneyFlowSankeyChart })));
+const WeeklyExpenseHeatmapChart = lazy(() => import('@/components/charts/WeeklyExpenseHeatmap').then(m => ({ default: m.WeeklyExpenseHeatmapChart })));
 import { RecentTransactions } from '@/components/RecentTransactions';
 import { ExpandableChatInterface } from '@/components/ExpandableChatInterface';
 import { useFinancialData } from '@/hooks/useFinancialData';
@@ -51,17 +52,17 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 pb-32">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white/70 supports-[backdrop-filter]:bg-white/50 backdrop-blur border-b border-gray-200 dark:bg-white/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="bg-blue-500 p-2 rounded-lg">
+              <div className="bg-indigo-600 p-2 rounded-xl shadow-sm">
                 <TrendingUp className="text-white w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">FinanceAI</h1>
+                <h1 className="text-xl font-semibold text-gray-900 tracking-tight">FinanceAI</h1>
                 <p className="text-sm text-gray-500">Assistente Financeiro Inteligente</p>
               </div>
             </div>
@@ -69,14 +70,14 @@ export default function Dashboard() {
             <div className="flex items-center space-x-4">
               {/* Demo Mode Badge */}
               {isDemo && (
-                <div className="flex items-center space-x-2 bg-purple-100 rounded-lg px-3 py-2">
+                <div className="flex items-center space-x-2 bg-purple-100/70 supports-[backdrop-filter]:bg-purple-100/50 backdrop-blur rounded-full px-3 py-1.5 ring-1 ring-purple-200">
                   <Sparkles className="w-4 h-4 text-purple-600" />
                   <span className="text-sm font-medium text-purple-700">Modo Demo</span>
                 </div>
               )}
               
               {error && !isDemo && (
-                <div className="flex items-center space-x-2 bg-red-100 rounded-lg px-3 py-2">
+                <div className="flex items-center space-x-2 bg-red-100/70 supports-[backdrop-filter]:bg-red-100/50 backdrop-blur rounded-full px-3 py-1.5 ring-1 ring-red-200">
                   <AlertCircle className="w-4 h-4 text-red-600" />
                   <span className="text-sm font-medium text-red-700">Erro de conexão</span>
                   <Button 
@@ -90,7 +91,7 @@ export default function Dashboard() {
                 </div>
               )}
               
-              <div className="flex items-center space-x-2 bg-gray-100 rounded-lg px-3 py-2">
+              <div className="flex items-center space-x-2 bg-gray-100/70 supports-[backdrop-filter]:bg-gray-100/50 backdrop-blur rounded-full px-4 py-2 ring-1 ring-gray-200">
                 <User className="w-4 h-4 text-gray-600" />
                 <span className="text-sm font-medium text-gray-700">João Silva</span>
               </div>
@@ -103,9 +104,9 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Loading State */}
         {loading && !isDemo && (
-          <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-8 p-4 bg-blue-50/70 supports-[backdrop-filter]:bg-blue-50/50 backdrop-blur border border-blue-200/80 rounded-xl">
             <div className="flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
               <span className="text-sm text-blue-700">Carregando dados financeiros...</span>
             </div>
           </div>
@@ -113,7 +114,7 @@ export default function Dashboard() {
 
         {/* Demo Mode Info */}
         {isDemo && (
-          <div className="mb-8 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+          <div className="mb-8 p-4 bg-purple-50/70 supports-[backdrop-filter]:bg-purple-50/50 backdrop-blur border border-purple-200/80 rounded-xl">
             <div className="flex items-center space-x-2">
               <Sparkles className="w-4 h-4 text-purple-600" />
               <span className="text-sm text-purple-700">
@@ -124,13 +125,19 @@ export default function Dashboard() {
         )}
 
         {/* Summary Cards */}
-        <SummaryCards summary={summary} />
+        <SummaryCards summary={summary} isLoading={loading && !isDemo} />
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <ExpensePieChart data={expenseCategories} isLoading={chartsLoading} />
-          <MonthlyLineChart data={monthlyData} isLoading={chartsLoading} />
-          <IncomeExpenseBarChart data={monthlyData} isLoading={chartsLoading} />
+          <Suspense fallback={<div className="h-[320px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+            <ExpensePieChart data={expenseCategories} isLoading={chartsLoading} />
+          </Suspense>
+          <Suspense fallback={<div className="h-[320px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+            <MonthlyLineChart data={monthlyData} isLoading={chartsLoading} />
+          </Suspense>
+          <Suspense fallback={<div className="h-[320px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+            <IncomeExpenseBarChart data={monthlyData} isLoading={chartsLoading} />
+          </Suspense>
           <RecentTransactions transactions={recentTransactions} />
         </div>
 
@@ -138,8 +145,12 @@ export default function Dashboard() {
         <div className="mt-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Análises Avançadas</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <MoneyFlowSankeyChart data={moneyFlow} isLoading={chartsLoading} />
-            <WeeklyExpenseHeatmapChart data={weeklyExpenseHeatmap} isLoading={chartsLoading} />
+            <Suspense fallback={<div className="h-[360px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+              <MoneyFlowSankeyChart data={moneyFlow} isLoading={chartsLoading} />
+            </Suspense>
+            <Suspense fallback={<div className="h-[360px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+              <WeeklyExpenseHeatmapChart data={weeklyExpenseHeatmap} isLoading={chartsLoading} />
+            </Suspense>
           </div>
         </div>
       </main>

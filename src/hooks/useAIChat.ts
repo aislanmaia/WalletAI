@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiService } from '../services/api';
 
 export interface ChatMessage {
@@ -15,6 +15,22 @@ interface AIResponse {
 }
 
 export function useAIChat() {
+  const SESSION_KEY = 'walletai_chat_session_id';
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const hasInit = useRef(false);
+
+  useEffect(() => {
+    if (hasInit.current) return;
+    hasInit.current = true;
+    const existing = localStorage.getItem(SESSION_KEY);
+    if (existing) {
+      setSessionId(existing);
+    } else {
+      const newId = crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(SESSION_KEY, newId);
+      setSessionId(newId);
+    }
+  }, []);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -49,7 +65,7 @@ export function useAIChat() {
 
     try {
       // Enviar mensagem para a API de IA
-      const response = await apiService.sendChatMessage(message);
+      const response = await apiService.sendChatMessage(message, sessionId || undefined);
       
       if (response.success && response.data) {
         const aiData = response.data as AIResponse;
@@ -90,6 +106,7 @@ export function useAIChat() {
   return {
     messages,
     isProcessing,
+    sessionId,
     processUserMessage,
     clearMessages
   };

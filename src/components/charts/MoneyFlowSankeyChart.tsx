@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Maximize2, Minimize2, ArrowRight } from 'lucide-react';
 import { MoneyFlow, MoneyFlowNode } from '@/hooks/useFinancialData';
 
@@ -14,13 +16,33 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="p-6 bg-white/70 supports-[backdrop-filter]:bg-white/50 backdrop-blur rounded-2xl shadow-lg hover:shadow-md transition-shadow border border-gray-100 dark:bg-white/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">Fluxo de Dinheiro</CardTitle>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-28 rounded-full" />
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64 flex items-center justify-center">
+            <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Empty state
+  if (!data || !data.nodes || !data.links || data.nodes.length === 0 || data.links.length === 0) {
+    return (
+      <Card className="p-6 bg-white/70 supports-[backdrop-filter]:bg-white/50 backdrop-blur rounded-2xl shadow-lg border border-gray-100 dark:bg-white/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10">
         <CardHeader>
           <CardTitle>Fluxo de Dinheiro</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="h-40 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+            Sem dados suficientes para exibir o fluxo.
           </div>
         </CardContent>
       </Card>
@@ -369,7 +391,7 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
   );
 
   return (
-    <Card className={isFullscreen ? 'fixed inset-4 z-50 bg-white shadow-2xl mb-20 overflow-hidden' : ''}>
+    <Card className={isFullscreen ? 'fixed inset-4 z-50 bg-white dark:bg-neutral-900 shadow-2xl mb-20 overflow-hidden' : 'bg-white/70 supports-[backdrop-filter]:bg-white/50 backdrop-blur rounded-2xl shadow-lg hover:shadow-md transition-shadow border border-gray-100 dark:bg-white/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10'}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -377,18 +399,30 @@ export function MoneyFlowSankeyChart({ data, isLoading = false }: MoneyFlowSanke
           </svg>
           Fluxo de Dinheiro
         </CardTitle>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsFullscreen(!isFullscreen)}
-          className="h-8 w-8 p-0"
-        >
-          {isFullscreen ? (
-            <Minimize2 className="h-4 w-4" />
-          ) : (
-            <Maximize2 className="h-4 w-4" />
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select defaultValue="6m">
+            <SelectTrigger className="w-auto text-sm rounded-full px-3 py-1.5 dark:border-white/10">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3m">Últ. 3 meses</SelectItem>
+              <SelectItem value="6m">Últ. 6 meses</SelectItem>
+              <SelectItem value="12m">Últ. 12 meses</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="h-8 w-8 p-0"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className={isFullscreen ? 'h-full overflow-hidden p-0' : ''}>
         {isFullscreen ? (

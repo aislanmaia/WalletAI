@@ -123,10 +123,10 @@ class ApiService {
   }
 
   // Métodos para IA
-  async sendChatMessage(message: string) {
+  async sendChatMessage(message: string, sessionId?: string) {
     return this.request(buildApiUrl(API_CONFIG.ENDPOINTS.AI.CHAT), {
       method: 'POST',
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, session_id: sessionId }),
     });
   }
 
