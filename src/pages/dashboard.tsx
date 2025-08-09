@@ -52,7 +52,7 @@ export default function Dashboard() {
       {/* Header removido: top bar agora no layout global */}
 
       {/* Main Dashboard */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="mx-auto py-8 px-4 sm:px-6 lg:px-8 xl:px-10 max-w-7xl xl:max-w-[90rem] 2xl:max-w-[96rem]">
         {/* Loading State */}
         {loading && !isDemo && (
           <div className="mb-8 p-4 bg-blue-50/70 supports-[backdrop-filter]:bg-blue-50/50 backdrop-blur border border-blue-200/80 rounded-xl">
@@ -78,22 +78,30 @@ export default function Dashboard() {
         {/* Summary Cards */}
         <SummaryCards summary={summary} isLoading={loading && !isDemo} />
 
-        {/* Gráficos principais (sem abas) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Suspense fallback={<div className="h-[320px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
-            <ExpensePieChart data={expenseCategories} isLoading={chartsLoading} />
-          </Suspense>
-          <Suspense fallback={<div className="h-[320px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
-            <IncomeExpenseBarChart data={monthlyData} isLoading={chartsLoading} />
-          </Suspense>
+        {/* Gráficos principais (layout 12 colunas em XL) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 gap-6 xl:gap-8">
+          <div className="xl:col-span-8 order-2 lg:order-none">
+            <Suspense fallback={<div className="h-[320px] xl:h-[380px] 2xl:h-[420px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+              <IncomeExpenseBarChart data={monthlyData} isLoading={chartsLoading} />
+            </Suspense>
+          </div>
+          <div className="xl:col-span-4 order-1 lg:order-none">
+            <Suspense fallback={<div className="h-[320px] xl:h-[360px] 2xl:h-[380px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+              <ExpensePieChart data={expenseCategories} isLoading={chartsLoading} />
+            </Suspense>
+          </div>
         </div>
 
         {/* Gastos por Dia da Semana (stacked bars) + Transações Recentes */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Suspense fallback={<div className="h-[360px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
-            <WeekdayStackedBarChart data={weeklyExpenseHeatmap} isLoading={chartsLoading} />
-          </Suspense>
-          <RecentTransactions transactions={recentTransactions} />
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 gap-6 xl:gap-8">
+          <div className="xl:col-span-8">
+            <Suspense fallback={<div className="h-[360px] xl:h-[380px] 2xl:h-[420px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+              <WeekdayStackedBarChart data={weeklyExpenseHeatmap} isLoading={chartsLoading} />
+            </Suspense>
+          </div>
+          <div className="xl:col-span-4">
+            <RecentTransactions transactions={recentTransactions} />
+          </div>
         </div>
       </main>
 

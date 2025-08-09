@@ -114,12 +114,12 @@ export function AppLayout({ children }: PropsWithChildren) {
         {/* Top Bar fora do fluxo do conteúdo (sempre no topo) */}
         <div className="sticky top-0 z-30">
           <header className="supports-[backdrop-filter]:bg-white/40 backdrop-blur border-b border-gray-200/60 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10 bg-transparent">
-            <div className="h-16 px-4 flex items-center gap-3 justify-between">
+            <div className="h-16 px-4 sm:px-6 lg:px-8 xl:px-10 flex items-center gap-3 justify-between mx-auto max-w-7xl xl:max-w-[90rem] 2xl:max-w-[96rem]">
               <div className="flex items-center gap-2">
                 <SidebarTrigger />
                 <div className="text-2xl font-semibold tracking-tight">Dashboard</div>
               </div>
-              <div className="flex-1 max-w-2xl">
+              <div className="flex-1 max-w-xl md:max-w-2xl xl:max-w-3xl">
                 <Input placeholder="Buscar qualquer coisa…" className="rounded-full" />
               </div>
               <div className="flex items-center gap-3">
