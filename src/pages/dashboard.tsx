@@ -8,7 +8,6 @@ const IncomeExpenseBarChart = lazy(() => import('@/components/charts/IncomeExpen
 const MoneyFlowSankeyChart = lazy(() => import('@/components/charts/MoneyFlowSankeyChart').then(m => ({ default: m.MoneyFlowSankeyChart })));
 const WeeklyExpenseHeatmapChart = lazy(() => import('@/components/charts/WeeklyExpenseHeatmap').then(m => ({ default: m.WeeklyExpenseHeatmapChart })));
 import { RecentTransactions } from '@/components/RecentTransactions';
-import { ExpandableChatInterface } from '@/components/ExpandableChatInterface';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useAIChat } from '@/hooks/useAIChat';
 import { Button } from '@/components/ui/button';
@@ -31,7 +30,7 @@ export default function Dashboard() {
     isDemoMode: isDemo
   } = useFinancialData();
   
-  const { messages, isProcessing, processUserMessage } = useAIChat();
+  const { processUserMessage } = useAIChat();
 
   // Simulate chart loading
   useEffect(() => {
@@ -155,12 +154,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Expandable Chat Interface */}
-      <ExpandableChatInterface
-        messages={messages}
-        onSendMessage={handleSendChatMessage}
-        isProcessing={isProcessing}
-      />
+      {/* Chat movido para o Layout (Outlet) */}
     </div>
   );
 }

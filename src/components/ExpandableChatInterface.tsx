@@ -9,9 +9,10 @@ interface ExpandableChatInterfaceProps {
   messages: ChatMessage[];
   onSendMessage: (message: string) => void;
   isProcessing: boolean;
+  withinOutlet?: boolean; // quando true, posiciona o dock relativo ao OUTLET
 }
 
-export function ExpandableChatInterface({ messages, onSendMessage, isProcessing }: ExpandableChatInterfaceProps) {
+export function ExpandableChatInterface({ messages, onSendMessage, isProcessing, withinOutlet = false }: ExpandableChatInterfaceProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDockVisible, setIsDockVisible] = useState(true);
   const [inputValue, setInputValue] = useState('');
@@ -139,8 +140,8 @@ export function ExpandableChatInterface({ messages, onSendMessage, isProcessing 
     <>
       {/* Backdrop - only when expanded */}
       {isExpanded && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+        <div
+          className={`${withinOutlet ? "absolute inset-0" : "fixed inset-0"} bg-black bg-opacity-50 z-40 transition-opacity duration-300`}
           onClick={handleBackdropClick}
         />
       )}
@@ -148,7 +149,7 @@ export function ExpandableChatInterface({ messages, onSendMessage, isProcessing 
       {/* FAB when dock hidden */}
       {!isDockVisible && (
         <button
-          className="fixed bottom-5 right-5 z-50 h-14 w-14 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 flex items-center justify-center"
+          className={`${withinOutlet ? "absolute" : "fixed"} bottom-5 right-5 z-50 h-14 w-14 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 flex items-center justify-center`}
           onClick={() => { setIsDockVisible(true); setIsExpanded(false); }}
           aria-label="Abrir chat"
         >
@@ -165,7 +166,7 @@ export function ExpandableChatInterface({ messages, onSendMessage, isProcessing 
 
       {/* Unified Chat Widget - positioned at bottom */}
       {isDockVisible && (
-      <div className="fixed left-0 right-0 bottom-0 z-50 p-4">
+      <div className={`${withinOutlet ? "absolute" : "fixed"} left-0 right-0 bottom-0 z-50 p-4`}>
         <div className={`max-w-4xl ${dockAlignClass}`}>
           {/* Single unified container */}
           <div className="bg-white/90 backdrop-blur border border-gray-200/80 rounded-2xl shadow-lg overflow-hidden dark:bg-neutral-900/60 dark:border-white/10">
