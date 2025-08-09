@@ -16,11 +16,13 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input as SidebarSearchInput } from "@/components/ui/input";
 import { TrendingUp, LayoutGrid, ListOrdered, PieChart, Target, User } from "lucide-react";
 import { PropsWithChildren } from "react";
 import { useAIChat } from "@/hooks/useAIChat";
-import { ExpandableChatInterface } from "@/components/ExpandableChatInterface";
+import { ChatBar } from "@/components/ChatBar";
+import { Input } from "@/components/ui/input";
+import { Avatar } from "@/components/ui/avatar";
 
 export function AppLayout({ children }: PropsWithChildren) {
   const { messages, isProcessing, processUserMessage } = useAIChat();
@@ -37,7 +39,7 @@ export function AppLayout({ children }: PropsWithChildren) {
               </div>
               <div className="font-semibold tracking-tight">FinanceAI</div>
             </div>
-            <Input placeholder="Buscar..." className="mx-2" />
+            <SidebarSearchInput placeholder="Buscar..." className="mx-2" />
           </SidebarHeader>
           <SidebarSeparator />
           <SidebarContent>
@@ -108,23 +110,44 @@ export function AppLayout({ children }: PropsWithChildren) {
         </div>
       </Sidebar>
 
-      <SidebarInset>
-        <header className="sticky top-0 z-20 bg-white/60 supports-[backdrop-filter]:bg-white/40 backdrop-blur border-b border-gray-200/80 dark:bg白/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10">
-          <div className="h-12 px-3 flex items-center gap-2">
-            <SidebarTrigger />
-            <div className="text-sm text-gray-600">{isDashboard ? "Dashboard" : ""}</div>
-          </div>
-        </header>
+      <SidebarInset className="bg-transparent">
+        {/* Top Bar fora do fluxo do conteúdo (sempre no topo) */}
+        <div className="sticky top-0 z-30">
+          <header className="supports-[backdrop-filter]:bg-white/40 backdrop-blur border-b border-gray-200/60 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10 bg-transparent">
+            <div className="h-16 px-4 flex items-center gap-3 justify-between">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger />
+                <div className="text-2xl font-semibold tracking-tight">Dashboard</div>
+              </div>
+              <div className="flex-1 max-w-2xl">
+                <Input placeholder="Buscar qualquer coisa…" className="rounded-full" />
+              </div>
+              <div className="flex items-center gap-3">
+                {/* Botão Modo Demo elegante */}
+                <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs bg-purple-100/70 text-purple-700 ring-1 ring-purple-200">
+                  <span className="inline-block h-2 w-2 rounded-full bg-purple-500" />
+                  Modo Demo
+                </div>
+                {/* Usuário compacto */}
+                <button className="inline-flex items-center gap-2 rounded-full px-3 py-1 bg-gray-100/70 ring-1 ring-gray-200 hover:bg-gray-100">
+                  <Avatar className="h-7 w-7" />
+                  <span className="text-sm">João Silva</span>
+                </button>
+              </div>
+            </div>
+          </header>
+        </div>
 
-        <div className="relative min-h-[calc(100svh-3rem)] pb-28">
+        {/* Conteúdo com padding-top para não ficar sob o top bar (sem fundo) */}
+        <div className="relative pt-12 min-h-[100svh] pb-28 bg-transparent">
           {children}
 
-          {/* Dock do chat dentro do OUTLET */}
-          <ExpandableChatInterface
-            messages={messages}
-            onSendMessage={(m) => processUserMessage(m)}
+          {/* Chat estilo AI Studio fixo ao rodapé do conteúdo */}
+          <ChatBar
+            onSend={(m) => processUserMessage(m)}
             isProcessing={isProcessing}
-            withinOutlet
+            suggestions={["Registrar despesa", "Relatório mensal", "Comparar meses"]}
+            messages={messages}
           />
         </div>
       </SidebarInset>
