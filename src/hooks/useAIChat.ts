@@ -22,6 +22,10 @@ export function useAIChat() {
   useEffect(() => {
     if (hasInit.current) return;
     hasInit.current = true;
+    // Listener para limpar chat a partir do ChatBar (botão na topbar)
+    const onClear = () => clearMessages();
+    window.addEventListener('walletai:clear-chat', onClear);
+    
     const existing = localStorage.getItem(SESSION_KEY);
     if (existing) {
       setSessionId(existing);
@@ -29,6 +33,9 @@ export function useAIChat() {
       const newId = crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       localStorage.setItem(SESSION_KEY, newId);
       setSessionId(newId);
+    }
+    return () => {
+      window.removeEventListener('walletai:clear-chat', onClear);
     }
   }, []);
   const [messages, setMessages] = useState<ChatMessage[]>([
