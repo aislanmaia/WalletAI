@@ -83,7 +83,7 @@ export function WeekdayStackedBarChart({ data, isLoading = false }: Props) {
 
   if (isLoading) {
     return (
-      <Card className="p-6 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 border border-gray-200/80 rounded-2xl shadow-sm dark:bg-white/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10">
+      <Card className="p-6 rounded-2xl shadow-flat border-0 bg-white">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Gastos por Dia da Semana</h3>
           <Skeleton className="h-9 w-28 rounded-full" />
@@ -96,7 +96,7 @@ export function WeekdayStackedBarChart({ data, isLoading = false }: Props) {
   }
 
   return (
-    <Card className="p-6 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 border border-gray-200/80 rounded-2xl shadow-sm dark:bg-white/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10">
+    <Card className="p-6 rounded-2xl shadow-flat border-0 bg-white">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Gastos por Dia da Semana</h3>
         <Select value={period} onValueChange={setPeriod}>

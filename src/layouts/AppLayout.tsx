@@ -16,7 +16,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Input as SidebarSearchInput } from "@/components/ui/input";
 import { TrendingUp, LayoutGrid, ListOrdered, PieChart, Target, User } from "lucide-react";
 import { PropsWithChildren } from "react";
 import { useAIChat } from "@/hooks/useAIChat";
@@ -27,30 +26,33 @@ import { Avatar } from "@/components/ui/avatar";
 export function AppLayout({ children }: PropsWithChildren) {
   const { messages, isProcessing, processUserMessage } = useAIChat();
   const [isDashboard] = useRoute("/");
+  const [isTransactions] = useRoute("/transactions");
+  const [isReports] = useRoute("/reports");
+  const [isGoals] = useRoute("/goals");
+  const [isProfile] = useRoute("/profile");
 
   return (
-    <SidebarProvider>
-      <Sidebar className="bg-white/80 supports-[backdrop-filter]:bg-white/60 backdrop-blur border-r border-gray-200/80 dark:bg-white/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10">
+      <SidebarProvider>
+      <Sidebar className="gradient-sidebar text-white shadow-2xl !rounded-r-2xl border-none">
         <div className="flex h-full flex-col">
           <SidebarHeader>
-            <div className="flex items-center gap-2 px-2 py-1">
-              <div className="bg-indigo-600 p-2 rounded-xl">
+            <div className="flex items-center gap-2 px-2 py-2">
+              <div className="bg-white/20 p-2 rounded-xl ring-1 ring-white/25">
                 <TrendingUp className="w-4 h-4 text-white" />
               </div>
               <div className="font-semibold tracking-tight">FinanceAI</div>
             </div>
-            <SidebarSearchInput placeholder="Buscar..." className="mx-2" />
           </SidebarHeader>
-          <SidebarSeparator />
+          <SidebarSeparator className="bg-white/20" />
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Navegação</SidebarGroupLabel>
+              <SidebarGroupLabel className="text-white/80">Navegação</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <Link href="/">
-                      <SidebarMenuButton asChild isActive={!!isDashboard}>
-                        <a>
+                      <SidebarMenuButton asChild isActive={!!isDashboard} className="hover:bg-white/10 data-[active=true]:bg-white">
+                        <a className="text-white data-[active=true]:!text-[#111827]">
                           <LayoutGrid />
                           <span>Dashboard</span>
                         </a>
@@ -59,8 +61,8 @@ export function AppLayout({ children }: PropsWithChildren) {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <Link href="/transactions">
-                      <SidebarMenuButton asChild>
-                        <a>
+                      <SidebarMenuButton asChild isActive={!!isTransactions} className="hover:bg-white/10 data-[active=true]:bg-white">
+                        <a className="text-white data-[active=true]:!text-[#111827]" aria-current={isTransactions ? 'page' : undefined}>
                           <ListOrdered />
                           <span>Transações</span>
                         </a>
@@ -69,8 +71,8 @@ export function AppLayout({ children }: PropsWithChildren) {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <Link href="/reports">
-                      <SidebarMenuButton asChild>
-                        <a>
+                      <SidebarMenuButton asChild isActive={!!isReports} className="hover:bg-white/10 data-[active=true]:bg-white">
+                        <a className="text-white data-[active=true]:!text-[#111827]" aria-current={isReports ? 'page' : undefined}>
                           <PieChart />
                           <span>Relatórios</span>
                         </a>
@@ -79,8 +81,8 @@ export function AppLayout({ children }: PropsWithChildren) {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <Link href="/goals">
-                      <SidebarMenuButton asChild>
-                        <a>
+                      <SidebarMenuButton asChild isActive={!!isGoals} className="hover:bg-white/10 data-[active=true]:bg-white">
+                        <a className="text-white data-[active=true]:!text-[#111827]" aria-current={isGoals ? 'page' : undefined}>
                           <Target />
                           <span>Metas</span>
                         </a>
@@ -89,8 +91,8 @@ export function AppLayout({ children }: PropsWithChildren) {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <Link href="/profile">
-                      <SidebarMenuButton asChild>
-                        <a>
+                      <SidebarMenuButton asChild isActive={!!isProfile} className="hover:bg-white/10 data-[active=true]:bg-white">
+                        <a className="text-white data-[active=true]:!text-[#111827]" aria-current={isProfile ? 'page' : undefined}>
                           <User />
                           <span>Perfil</span>
                         </a>
@@ -102,10 +104,10 @@ export function AppLayout({ children }: PropsWithChildren) {
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter>
-            <Button variant="outline" className="justify-start">
+            <Button variant="outline" className="justify-start bg-white/10 hover:bg-white/15 text-white border-white/20">
               Configurações
             </Button>
-            <Button className="justify-start">Upgrade</Button>
+            <Button className="justify-start bg-white text-[#00A38D] hover:bg-gray-50">Upgrade</Button>
           </SidebarFooter>
         </div>
       </Sidebar>
@@ -119,13 +121,11 @@ export function AppLayout({ children }: PropsWithChildren) {
                 <SidebarTrigger />
                 <div className="text-2xl font-semibold tracking-tight">Dashboard</div>
               </div>
-              <div className="flex-1 max-w-xl md:max-w-2xl xl:max-w-3xl">
-                <Input placeholder="Buscar qualquer coisa…" className="rounded-full" />
-              </div>
+              <div className="flex-1 max-w-xl md:max-w-2xl xl:max-w-3xl" />
               <div className="flex items-center gap-3">
-                {/* Botão Modo Demo elegante */}
-                <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs bg-purple-100/70 text-purple-700 ring-1 ring-purple-200">
-                  <span className="inline-block h-2 w-2 rounded-full bg-purple-500" />
+                {/* Chip Modo Demo - ciano da paleta */}
+                <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs bg-[#E6F0F6] text-[#00A89C] ring-1 ring-[#00C6B8]/30">
+                  <span className="inline-block h-2 w-2 rounded-full bg-[#00C6B8]" />
                   Modo Demo
                 </div>
                 {/* Usuário compacto */}
@@ -139,7 +139,7 @@ export function AppLayout({ children }: PropsWithChildren) {
         </div>
 
         {/* Conteúdo com padding-top para não ficar sob o top bar (sem fundo) */}
-        <div className="relative pt-12 min-h-[100svh] pb-28 bg-transparent">
+        <div className="relative min-h-[100svh] pt-4 pb-28 bg-transparent">
           {children}
 
           {/* Chat estilo AI Studio fixo ao rodapé do conteúdo */}

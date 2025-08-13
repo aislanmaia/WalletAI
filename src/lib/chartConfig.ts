@@ -1,13 +1,13 @@
 import { ChartOptions } from 'chart.js';
 
 export const chartColors = {
-  primary: '#1E40AF',
-  success: '#059669', 
-  danger: '#DC2626',
+  primary: '#4A56E2',
+  success: '#10B981',
+  danger: '#F87171',
   warning: '#D97706',
   info: '#0284C7',
-  purple: '#7C3AED',
-  pink: '#DB2777'
+  purple: '#343D9B',
+  pink: '#F87171'
 };
 
 export const defaultChartOptions: ChartOptions<any> = {

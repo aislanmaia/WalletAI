@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiService } from '@/services/api';
 import { Card } from '@/components/ui/card';
@@ -6,8 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Transaction } from '@/hooks/useFinancialData';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import { Link } from 'wouter';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -19,6 +22,11 @@ function formatDate(value: string | Date) {
 }
 
 export default function TransactionsPage() {
+  const [query, setQuery] = useState('');
+  const [type, setType] = useState<'todas' | 'receitas' | 'despesas'>('todas');
+  const [period, setPeriod] = useState<'tudo' | '7d' | '30d' | '90d'>('tudo');
+  const [category, setCategory] = useState<string>('todas');
+
   const { data, isLoading } = useQuery({
     queryKey: ['transactions-all'],
     queryFn: async () => {
@@ -27,17 +35,66 @@ export default function TransactionsPage() {
     },
   });
 
-  const transactions = useMemo(() => {
+  const allTransactions = useMemo(() => {
     const list = Array.isArray(data) ? [...data] : [];
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [data]);
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    (allTransactions || []).forEach((t) => set.add(t.category));
+    return Array.from(set).sort();
+  }, [allTransactions]);
+
+  const filtered = useMemo(() => {
+    let list = [...allTransactions];
+    // Tipo
+    if (type === 'receitas') list = list.filter((t) => t.amount > 0);
+    if (type === 'despesas') list = list.filter((t) => t.amount < 0);
+    // Período
+    if (period !== 'tudo') {
+      const now = new Date().getTime();
+      const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
+      const cutoff = now - days * 24 * 60 * 60 * 1000;
+      list = list.filter((t) => new Date(t.date).getTime() >= cutoff);
+    }
+    // Categoria
+    if (category !== 'todas') list = list.filter((t) => t.category === category);
+    // Busca
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      list = list.filter((t) =>
+        t.description.toLowerCase().includes(q) ||
+        t.category.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [allTransactions, type, period, category, query]);
+
+  const downloadCsv = () => {
+    const header = ['Descrição', 'Categoria', 'Data', 'Valor'];
+    const rows = filtered.map((t) => [
+      t.description,
+      t.category,
+      formatDate(t.date as any),
+      `${t.amount < 0 ? '-' : ''}R$ ${formatCurrency(Math.abs(t.amount))}`,
+    ]);
+    const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace('"', '""')}"`).join(';')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'transacoes.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="mt-4 mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/">
-            <a className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-700">
+            <a className="inline-flex items-center text-sm text-[#4A56E2] hover:text-[#343D9B]">
               <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
             </a>
           </Link>
@@ -45,11 +102,73 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <Card className="p-6 bg-white/70 supports-[backdrop-filter]:bg-white/50 backdrop-blur rounded-2xl shadow-lg border border-gray-100 dark:bg-white/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10">
+      {/* Toolbar: filtros à esquerda, ações à direita */}
+      <div className="mb-4 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 flex-1">
+          <div className="md:col-span-2">
+            <label htmlFor="tx-search" className="mb-1 block text-xs font-medium text-gray-600">Buscar</label>
+            <Input
+              id="tx-search"
+              placeholder="por descrição ou categoria"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="rounded-xl h-10 border-[#D1D5DB] bg-white placeholder-[#9CA3AF] shadow-sm focus-visible:ring-2 focus-visible:ring-[#4A56E2] focus-visible:ring-offset-1"
+            />
+          </div>
+          <div>
+            <label id="tx-type-label" className="mb-1 block text-xs font-medium text-gray-600">Tipo</label>
+            <Select value={type} onValueChange={(v) => setType(v as any)}>
+              <SelectTrigger id="tx-type" aria-labelledby="tx-type-label" className="rounded-xl h-10 border-[#D1D5DB] bg-white text-[#111827] shadow-sm focus-visible:ring-2 focus-visible:ring-[#4A56E2] focus-visible:ring-offset-1">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas</SelectItem>
+            <SelectItem value="receitas">Receitas</SelectItem>
+            <SelectItem value="despesas">Despesas</SelectItem>
+          </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label id="tx-period-label" className="mb-1 block text-xs font-medium text-gray-600">Período</label>
+            <Select value={period} onValueChange={(v) => setPeriod(v as any)}>
+              <SelectTrigger id="tx-period" aria-labelledby="tx-period-label" className="rounded-xl h-10 border-[#D1D5DB] bg-white text-[#111827] shadow-sm focus-visible:ring-2 focus-visible:ring-[#4A56E2] focus-visible:ring-offset-1">
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="tudo">Tudo</SelectItem>
+            <SelectItem value="7d">Últimos 7 dias</SelectItem>
+            <SelectItem value="30d">Últimos 30 dias</SelectItem>
+            <SelectItem value="90d">Últimos 90 dias</SelectItem>
+          </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label id="tx-category-label" className="mb-1 block text-xs font-medium text-gray-600">Categoria</label>
+            <Select value={category} onValueChange={(v) => setCategory(v)}>
+              <SelectTrigger id="tx-category" aria-labelledby="tx-category-label" className="rounded-xl h-10 border-[#D1D5DB] bg-white text-[#111827] shadow-sm focus-visible:ring-2 focus-visible:ring-[#4A56E2] focus-visible:ring-offset-1">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas</SelectItem>
+            {categories.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex md:justify-end">
+          <Button onClick={downloadCsv} variant="outline" className="rounded-xl gap-2 border-[#D1D5DB] text-[#4A56E2] hover:bg-[#EEF2FF]">
+            <Download className="w-4 h-4" /> Exportar CSV
+          </Button>
+        </div>
+      </div>
+
+      <Card className="p-0 rounded-2xl shadow-flat border-0 bg-white">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-50/70 dark:bg-white/5">
+            <TableHeader className="sticky top-0 z-10 bg-white border-b border-[#E5E7EB]">
+              <TableRow className="bg-gray-50">
                 <TableHead>Descrição</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Data</TableHead>
@@ -59,7 +178,7 @@ export default function TransactionsPage() {
             <TableBody>
               {isLoading && (
                 Array.from({ length: 6 }).map((_, idx) => (
-                  <TableRow key={`sk-${idx}`} className={idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-white/5' : undefined}>
+                  <TableRow key={`sk-${idx}`} className={idx % 2 === 0 ? 'bg-gray-50' : undefined}>
                     <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24 rounded-full" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -68,7 +187,7 @@ export default function TransactionsPage() {
                 ))
               )}
 
-              {!isLoading && transactions.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                     Nenhuma transação encontrada.
@@ -76,18 +195,18 @@ export default function TransactionsPage() {
                 </TableRow>
               )}
 
-              {!isLoading && transactions.map((t, idx) => {
+              {!isLoading && filtered.map((t, idx) => {
                 const isExpense = t.amount < 0;
                 return (
-                  <TableRow key={t.id} className={idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-white/5' : undefined}>
+                  <TableRow key={t.id} className={idx % 2 === 0 ? 'bg-gray-50' : undefined}>
                     <TableCell className="font-medium text-gray-900 dark:text-gray-100">{t.description}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="rounded-full text-[10px] font-medium px-2 py-0.5 border-gray-200 text-gray-600 dark:border-white/15 dark:text-gray-300">
                         {t.category}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-gray-600 dark:text-gray-400">{formatDate(t.date as any)}</TableCell>
-                    <TableCell className={isExpense ? 'text-rose-600 text-right tabular-nums font-semibold' : 'text-emerald-600 text-right tabular-nums font-semibold'}>
+                    <TableCell className="text-gray-700">{formatDate(t.date as any)}</TableCell>
+                    <TableCell className={isExpense ? 'text-[#F87171] text-right tabular-nums font-semibold' : 'text-[#10B981] text-right tabular-nums font-semibold'}>
                       {isExpense ? '-' : '+'}R$ {formatCurrency(Math.abs(t.amount))}
                     </TableCell>
                   </TableRow>
