@@ -191,7 +191,7 @@ export function ChatBar({ placeholder, isProcessing, onSend, suggestions = [], m
             style={{ height: `${contentHeight}px`, transition: 'height 300ms ease' }}
           >
             {isExpanded && (
-                <div className="h-full flex flex-col">
+                <div className="h-full flex flex-col chat-fade-in">
                   {/* Top bar única para ambas as colunas */}
                   <div className="shrink-0 h-14 px-5 flex items-center justify-between border-b border-gray-200 dark:border-white/10 supports-[backdrop-filter]:bg-white/90 backdrop-blur dark:supports-[backdrop-filter]:bg-neutral-900/70">
                     <div className="text-sm font-medium text-[#111827] dark:text-gray-100">Assistente FinanceAI</div>

@@ -233,6 +233,13 @@
     to { opacity: 0; transform: translateY(8px); }
   }
   .chat-fade-out { animation: chatFadeOut 180ms ease forwards; }
+
+  /* Fade-in discreto apenas de opacidade para evitar jitter */
+  @keyframes chatFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .chat-fade-in { animation: chatFadeIn 220ms ease-out; will-change: opacity; }
 }
 
 @layer utilities {
