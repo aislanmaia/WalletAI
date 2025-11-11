@@ -31,7 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
-import { NewTransactionDialog } from "@/components/NewTransactionDialog";
+import { NewTransactionSheet } from "@/components/NewTransactionSheet";
 
 export function AppLayout({ children }: PropsWithChildren) {
   const { messages, isProcessing, processUserMessage } = useAIChat();
@@ -224,13 +224,15 @@ export function AppLayout({ children }: PropsWithChildren) {
         <div className="relative min-h-[100svh] pt-4 pb-28 bg-transparent">
           {children}
 
-          {/* Dialog de Nova Transação */}
-          <NewTransactionDialog
+          {/* Sheet de Nova Transação */}
+          <NewTransactionSheet
             open={isNewTransactionOpen}
             onOpenChange={setIsNewTransactionOpen}
             onSuccess={() => {
-              // Recarregar dados se necessário
-              // Pode adicionar um callback aqui para atualizar o dashboard
+              // Invalidar queries de transações se estiver na rota /transactions
+              if (typeof (window as any).__invalidateTransactions === 'function') {
+                (window as any).__invalidateTransactions();
+              }
             }}
           />
 

@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { apiService } from '@/services/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { listTransactions } from '@/api/transactions';
+import { Transaction } from '@/types/api';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Transaction } from '@/hooks/useFinancialData';
 import { ArrowLeft, Download } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { useEffect } from 'react';
 
 function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -27,27 +28,50 @@ export default function TransactionsPage() {
   const [period, setPeriod] = useState<'tudo' | '7d' | '30d' | '90d'>('tudo');
   const [category, setCategory] = useState<string>('todas');
 
+  const queryClient = useQueryClient();
+  const [location] = useLocation();
+
   const { data, isLoading } = useQuery({
-    queryKey: ['transactions-all'],
+    queryKey: ['transactions'],
     queryFn: async () => {
-      const res = await apiService.getTransactions();
-      return (res.data || []) as Transaction[];
+      return await listTransactions();
     },
   });
 
-  const allTransactions = useMemo(() => {
+  // Expor função para invalidar queries quando estiver nesta rota
+  useEffect(() => {
+    if (location === '/transactions') {
+      // Armazenar função de invalidação no window para acesso global
+      (window as any).__invalidateTransactions = () => {
+        queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      };
+    }
+    return () => {
+      delete (window as any).__invalidateTransactions;
+    };
+  }, [location, queryClient]);
+
+  // Converter Transaction da API para o formato esperado (amount positivo/negativo)
+  const transactionsWithAmount = useMemo(() => {
     const list = Array.isArray(data) ? [...data] : [];
-    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return list
+      .map((t) => ({
+        ...t,
+        id: t.id.toString(),
+        amount: t.type === 'income' ? t.value : -t.value,
+        date: new Date(t.date),
+      }))
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [data]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
-    (allTransactions || []).forEach((t) => set.add(t.category));
+    (transactionsWithAmount || []).forEach((t) => set.add(t.category));
     return Array.from(set).sort();
-  }, [allTransactions]);
+  }, [transactionsWithAmount]);
 
   const filtered = useMemo(() => {
-    let list = [...allTransactions];
+    let list = [...transactionsWithAmount];
     // Tipo
     if (type === 'receitas') list = list.filter((t) => t.amount > 0);
     if (type === 'despesas') list = list.filter((t) => t.amount < 0);
@@ -69,7 +93,7 @@ export default function TransactionsPage() {
       );
     }
     return list;
-  }, [allTransactions, type, period, category, query]);
+  }, [transactionsWithAmount, type, period, category, query]);
 
   const downloadCsv = () => {
     const header = ['Descrição', 'Categoria', 'Data', 'Valor'];
