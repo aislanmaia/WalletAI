@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, LayoutGrid, ListOrdered, PieChart, Target, User, LogOut, Plus } from "lucide-react";
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, useState } from "react";
 import { useAIChat } from "@/hooks/useAIChat";
 import { ChatBar } from "@/components/ChatBar";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { NewTransactionDialog } from "@/components/NewTransactionDialog";
 
 export function AppLayout({ children }: PropsWithChildren) {
   const { messages, isProcessing, processUserMessage } = useAIChat();
@@ -41,6 +42,7 @@ export function AppLayout({ children }: PropsWithChildren) {
   const [isReports] = useRoute("/reports");
   const [isGoals] = useRoute("/goals");
   const [isProfile] = useRoute("/profile");
+  const [isNewTransactionOpen, setIsNewTransactionOpen] = useState(false);
 
   const handleLogout = () => {
     signOut();
@@ -166,10 +168,7 @@ export function AppLayout({ children }: PropsWithChildren) {
                 <SidebarTrigger />
                 <div className="text-2xl font-semibold tracking-tight">Dashboard</div>
                 <Button
-                  onClick={() => {
-                    // TODO: Abrir modal/dialog de criação de transação
-                    console.log('Abrir modal de nova transação');
-                  }}
+                  onClick={() => setIsNewTransactionOpen(true)}
                   className="h-9 px-4 rounded-full shadow-sm bg-gradient-to-r from-[#4A56E2] to-[#00C6B8] hover:from-[#343D9B] hover:to-[#00A89C] text-white font-medium flex items-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
                 >
                   <Plus className="h-4 w-4" />
@@ -224,6 +223,16 @@ export function AppLayout({ children }: PropsWithChildren) {
         {/* Conteúdo com padding-top para não ficar sob o top bar (sem fundo) */}
         <div className="relative min-h-[100svh] pt-4 pb-28 bg-transparent">
           {children}
+
+          {/* Dialog de Nova Transação */}
+          <NewTransactionDialog
+            open={isNewTransactionOpen}
+            onOpenChange={setIsNewTransactionOpen}
+            onSuccess={() => {
+              // Recarregar dados se necessário
+              // Pode adicionar um callback aqui para atualizar o dashboard
+            }}
+          />
 
           {/* Chat estilo AI Studio fixo ao rodapé do conteúdo */}
           <ChatBar
