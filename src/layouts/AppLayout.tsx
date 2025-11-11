@@ -1,4 +1,4 @@
-import { Link, useRoute } from "wouter";
+import { Link, useLocation, useRoute } from "wouter";
 import {
   Sidebar,
   SidebarContent,
@@ -16,20 +16,65 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, LayoutGrid, ListOrdered, PieChart, Target, User } from "lucide-react";
+import { TrendingUp, LayoutGrid, ListOrdered, PieChart, Target, User, LogOut, Plus } from "lucide-react";
 import { PropsWithChildren } from "react";
 import { useAIChat } from "@/hooks/useAIChat";
 import { ChatBar } from "@/components/ChatBar";
 import { Input } from "@/components/ui/input";
-import { Avatar } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/useAuth";
 
 export function AppLayout({ children }: PropsWithChildren) {
   const { messages, isProcessing, processUserMessage } = useAIChat();
+  const { user, signOut } = useAuth();
+  const [, setLocation] = useLocation();
   const [isDashboard] = useRoute("/");
   const [isTransactions] = useRoute("/transactions");
   const [isReports] = useRoute("/reports");
   const [isGoals] = useRoute("/goals");
   const [isProfile] = useRoute("/profile");
+
+  const handleLogout = () => {
+    signOut();
+    setLocation("/login");
+  };
+
+  const getUserDisplayName = () => {
+    if (user?.first_name || user?.last_name) {
+      // Usar first_name e last_name se disponíveis
+      const parts = [user.first_name, user.last_name].filter(Boolean);
+      return parts.join(' ').trim();
+    }
+    // Fallback: extrair o nome do email (parte antes do @)
+    if (user?.email) {
+      const emailName = user.email.split("@")[0];
+      return emailName.charAt(0).toUpperCase() + emailName.slice(1);
+    }
+    return "Usuário";
+  };
+
+  const getUserInitials = () => {
+    if (user?.first_name || user?.last_name) {
+      // Usar primeira letra do first_name e last_name
+      const first = user.first_name?.charAt(0).toUpperCase() || '';
+      const last = user.last_name?.charAt(0).toUpperCase() || '';
+      return (first + last).trim() || 'US';
+    }
+    // Fallback: usar primeiras letras do email
+    if (user?.email) {
+      const emailName = user.email.split("@")[0];
+      return emailName.substring(0, 2).toUpperCase();
+    }
+    return "US";
+  };
 
   return (
       <SidebarProvider>
@@ -117,9 +162,19 @@ export function AppLayout({ children }: PropsWithChildren) {
         <div className="sticky top-0 z-30">
           <header className="supports-[backdrop-filter]:bg-white/40 backdrop-blur border-b border-gray-200/60 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10 bg-transparent">
             <div className="h-16 px-4 sm:px-6 lg:px-8 xl:px-10 flex items-center gap-3 justify-between mx-auto max-w-7xl xl:max-w-[90rem] 2xl:max-w-[96rem]">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <SidebarTrigger />
                 <div className="text-2xl font-semibold tracking-tight">Dashboard</div>
+                <Button
+                  onClick={() => {
+                    // TODO: Abrir modal/dialog de criação de transação
+                    console.log('Abrir modal de nova transação');
+                  }}
+                  className="h-9 px-4 rounded-full shadow-sm bg-gradient-to-r from-[#4A56E2] to-[#00C6B8] hover:from-[#343D9B] hover:to-[#00A89C] text-white font-medium flex items-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="text-sm">Nova transação</span>
+                </Button>
               </div>
               <div className="flex-1 max-w-xl md:max-w-2xl xl:max-w-3xl" />
               <div className="flex items-center gap-3">
@@ -128,11 +183,39 @@ export function AppLayout({ children }: PropsWithChildren) {
                   <span className="inline-block h-2 w-2 rounded-full bg-[#00C6B8]" />
                   Modo Demo
                 </div>
-                {/* Usuário compacto */}
-                <button className="inline-flex items-center gap-2 rounded-full px-3 py-1 bg-gray-100/70 ring-1 ring-gray-200 hover:bg-gray-100">
-                  <Avatar className="h-7 w-7" />
-                  <span className="text-sm">João Silva</span>
-                </button>
+                {/* Menu de contexto do usuário */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 bg-gray-100/70 ring-1 ring-gray-200 hover:bg-gray-100 transition-colors">
+                      <Avatar className="h-7 w-7">
+                        <AvatarFallback className="bg-gradient-to-br from-[#4A56E2] to-[#00C6B8] text-white text-xs font-semibold">
+                          {getUserInitials()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium">{getUserDisplayName()}</span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{getUserDisplayName()}</p>
+                        {user?.email && (
+                          <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                        )}
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setLocation("/profile")} className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Perfil</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sair</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </header>
