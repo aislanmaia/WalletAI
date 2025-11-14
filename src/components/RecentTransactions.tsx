@@ -43,7 +43,7 @@ const formatDate = (date: Date): string => {
 export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   if (!transactions || transactions.length === 0) {
     return (
-      <Card className="p-6 bg-white/70 supports-[backdrop-filter]:bg-white/50 backdrop-blur rounded-2xl shadow-lg border border-gray-100 dark:bg-white/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10">
+      <Card className="p-6 rounded-2xl shadow-flat border-0 gradient-card-indigo/50">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Transações Recentes</h3>
           <Button variant="ghost" className="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
@@ -56,7 +56,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   }
 
   return (
-    <Card className="p-6 bg-white/70 supports-[backdrop-filter]:bg-white/50 backdrop-blur rounded-2xl shadow-lg border border-gray-100 dark:bg-white/5 dark:supports-[backdrop-filter]:bg-white/[0.03] dark:border-white/10">
+    <Card className="p-6 rounded-2xl shadow-flat border-0 gradient-card-indigo/50">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Transações Recentes</h3>
         <Link href="/transactions">

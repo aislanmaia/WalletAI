@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bot, User, X, Send, Mic, Copy, Check, ChevronDown, Clock, MessageCircle, PanelLeft, PanelRight, Minus } from 'lucide-react';
+import { Bot, User, X, Send, Mic, Copy, Check, ChevronDown, Clock, MessageCircle, PanelLeft, PanelRight, Minus, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ChatMessage } from '@/hooks/useAIChat';
 import { useViewportHeight } from '@/hooks/useViewportHeight';
 
@@ -9,15 +9,16 @@ interface ExpandableChatInterfaceProps {
   messages: ChatMessage[];
   onSendMessage: (message: string) => void;
   isProcessing: boolean;
+  withinOutlet?: boolean; // quando true, posiciona o dock relativo ao OUTLET
 }
 
-export function ExpandableChatInterface({ messages, onSendMessage, isProcessing }: ExpandableChatInterfaceProps) {
+export function ExpandableChatInterface({ messages, onSendMessage, isProcessing, withinOutlet = false }: ExpandableChatInterfaceProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDockVisible, setIsDockVisible] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const { viewportHeight } = useViewportHeight(isExpanded);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [autoStick, setAutoStick] = useState(true);
@@ -45,6 +46,15 @@ export function ExpandableChatInterface({ messages, onSendMessage, isProcessing 
     }
   }, [isExpanded]);
 
+  // Auto-resize para textarea ao estilo AI Studio
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = '0px';
+    const next = Math.min(el.scrollHeight, 160); // limite 160px (~4-5 linhas)
+    el.style.height = next + 'px';
+  }, [inputValue]);
+
   const handleSubmit = () => {
     if (inputValue.trim()) {
       onSendMessage(inputValue);
@@ -52,8 +62,9 @@ export function ExpandableChatInterface({ messages, onSendMessage, isProcessing 
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
       handleSubmit();
     }
   };
@@ -139,34 +150,38 @@ export function ExpandableChatInterface({ messages, onSendMessage, isProcessing 
     <>
       {/* Backdrop - only when expanded */}
       {isExpanded && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+        <div
+          className={`fixed inset-0 md:left-[var(--sidebar-width)] bg-black bg-opacity-50 z-40 transition-opacity duration-300`}
           onClick={handleBackdropClick}
         />
       )}
 
       {/* FAB when dock hidden */}
       {!isDockVisible && (
-        <button
-          className="fixed bottom-5 right-5 z-50 h-14 w-14 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 flex items-center justify-center"
-          onClick={() => { setIsDockVisible(true); setIsExpanded(false); }}
-          aria-label="Abrir chat"
-        >
-          <div className="relative">
-            <MessageCircle className="w-6 h-6" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 rounded-full bg-red-600 text-[10px] leading-5 text-white text-center">
-                {unreadCount}
-              </span>
-            )}
+        <div className="fixed left-0 right-0 bottom-5 z-50 pointer-events-none">
+          <div className="md:ml-[var(--sidebar-width)] flex justify-end pr-5">
+            <button
+              className={`pointer-events-auto h-14 w-14 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 flex items-center justify-center`}
+              onClick={() => { setIsDockVisible(true); setIsExpanded(false); }}
+              aria-label="Abrir chat"
+            >
+              <div className="relative">
+                <MessageCircle className="w-6 h-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 rounded-full bg-red-600 text-[10px] leading-5 text-white text-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </div>
+            </button>
           </div>
-        </button>
+        </div>
       )}
 
       {/* Unified Chat Widget - positioned at bottom */}
       {isDockVisible && (
-      <div className="fixed left-0 right-0 bottom-0 z-50 p-4">
-        <div className={`max-w-4xl ${dockAlignClass}`}>
+      <div className={`fixed left-0 right-0 bottom-0 z-50 p-4`}>
+        <div className={`max-w-4xl md:ml-[var(--sidebar-width)] ${dockAlignClass}`}>
           {/* Single unified container */}
           <div className="bg-white/90 backdrop-blur border border-gray-200/80 rounded-2xl shadow-lg overflow-hidden dark:bg-neutral-900/60 dark:border-white/10">
             {/* Chat Messages Area - only visible when expanded */}
@@ -318,54 +333,64 @@ export function ExpandableChatInterface({ messages, onSendMessage, isProcessing 
                   </div>
                 </div>
               )}
-              <div className="flex items-center space-x-3">
-                <div className="flex-1 relative">
-                  <Input
-                    ref={inputRef}
-                    type="text"
-                    placeholder="Pergunte algo ou registre uma transação... (Ex: 'Gastei R$ 50 no almoço' ou 'Quanto gastei este mês?')"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    onFocus={handleInputFocus}
-                    className="pr-12 py-3 text-base border-gray-300 dark:border-white/10 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    disabled={isProcessing}
-                    aria-label="Mensagem para o assistente"
-                  />
-                  {isExpanded && !autoStick && (
-                    <button
-                      className="absolute -bottom-10 right-0 inline-flex items-center gap-1 text-xs bg-white/90 dark:bg-neutral-900/80 border border-gray-200 dark:border-white/10 rounded-full px-3 py-1 shadow-sm"
-                      onClick={() => { setAutoStick(true); scrollToBottom(); }}
-                      aria-label="Rolar para o fim"
+              <div className="flex">
+                <div className="flex-1">
+                  <div className="group flex items-end gap-2 rounded-2xl border border-gray-200 bg-white/95 px-3 py-2 shadow-sm focus-within:ring-1 focus-within:ring-indigo-500 dark:border-white/10 dark:bg-neutral-900/70">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10"
+                      aria-label="Anexar arquivo"
                     >
-                      <ChevronDown className="w-3 h-3" /> Fim
-                    </button>
+                      <Paperclip className="w-4 h-4" />
+                    </Button>
+                    <Textarea
+                      ref={inputRef}
+                      placeholder="Pergunte algo ou registre uma transação... (Shift+Enter para nova linha)"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      onFocus={handleInputFocus}
+                      rows={1}
+                      className="min-h-[40px] max-h-40 flex-1 resize-none border-0 bg-transparent p-2 px-0 text-base shadow-none focus-visible:ring-0"
+                      disabled={isProcessing}
+                      aria-label="Mensagem para o assistente"
+                    />
+                    <Button
+                      onClick={handleVoiceInput}
+                      variant="ghost"
+                      size="icon"
+                      className={`h-9 w-9 rounded-full transition-colors ${
+                        isListening 
+                          ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10'
+                      }`}
+                      aria-pressed={isListening}
+                      aria-label={isListening ? 'Parar gravação de voz' : 'Iniciar gravação de voz'}
+                    >
+                      <Mic className={`w-4 h-4 ${isListening ? 'animate-pulse' : ''}`} />
+                    </Button>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!inputValue.trim() || isProcessing}
+                      className="h-9 w-9 rounded-full bg-blue-500 text-white hover:bg-blue-600"
+                      aria-label="Enviar mensagem"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {isExpanded && !autoStick && (
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        className="inline-flex items-center gap-1 text-xs bg-white/90 dark:bg-neutral-900/80 border border-gray-200 dark:border-white/10 rounded-full px-3 py-1 shadow-sm"
+                        onClick={() => { setAutoStick(true); scrollToBottom(); }}
+                        aria-label="Rolar para o fim"
+                      >
+                        <ChevronDown className="w-3 h-3" /> Fim
+                      </button>
+                    </div>
                   )}
                 </div>
-                
-                <Button
-                  onClick={handleVoiceInput}
-                  variant="ghost"
-                  size="sm"
-                  className={`p-2 rounded-full transition-colors ${
-                    isListening 
-                      ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-white/10'
-                  }`}
-                  aria-pressed={isListening}
-                  aria-label={isListening ? 'Parar gravação de voz' : 'Iniciar gravação de voz'}
-                >
-                  <Mic className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
-                </Button>
-                
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!inputValue.trim() || isProcessing}
-                  className="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-full w-12 h-12 flex items-center justify-center"
-                  aria-label="Enviar mensagem"
-                >
-                  <Send className="w-5 h-5" />
-                </Button>
               </div>
             </div>
           </div>
