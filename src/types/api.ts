@@ -223,6 +223,54 @@ export interface ChatResponse {
   processing_time: number; // segundos
 }
 
+// ===== TAG TYPES =====
+export interface TagType {
+  id: string;
+  name: string;
+  description: string | null;
+  is_required: boolean;
+  max_per_transaction: number | null;
+}
+
+export interface TagTypesResponse {
+  tag_types: TagType[];
+}
+
+// ===== TAGS =====
+export interface TagTypeInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  is_required: boolean;
+  max_per_transaction: number | null;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  tag_type: TagTypeInfo;
+  color: string | null;
+  is_default: boolean;
+  is_active: boolean;
+  organization_id: string;
+}
+
+export interface CreateTagRequest {
+  name: string;
+  tag_type_id: string;
+  color?: string | null;
+}
+
+export interface UpdateTagRequest {
+  name: string;
+  tag_type_id: string;
+  color?: string | null;
+}
+
+export interface TagsResponse {
+  tags: Tag[];
+}
+
 // ===== ERROS =====
 export interface ApiError {
   detail: string;
