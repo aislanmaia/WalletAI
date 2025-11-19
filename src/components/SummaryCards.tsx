@@ -39,7 +39,7 @@ export const SummaryCards = memo(function SummaryCards({ summary, isLoading, isE
               <Skeleton className="h-8 w-40" />
             ) : (
               <p className="text-3xl font-semibold text-white">
-                R$ {formatCurrency(summary.balance)}
+                {formatCurrency(summary.balance)}
               </p>
             )}
             <p className="text-sm text-white/90 flex items-center mt-2">
@@ -62,7 +62,7 @@ export const SummaryCards = memo(function SummaryCards({ summary, isLoading, isE
               <Skeleton className="h-8 w-40" />
             ) : (
               <p className="text-3xl font-semibold text-white">
-                R$ {formatCurrency(summary.income)}
+                {formatCurrency(summary.income)}
               </p>
             )}
             <p className="text-sm text-white/90 flex items-center mt-2">
@@ -85,7 +85,7 @@ export const SummaryCards = memo(function SummaryCards({ summary, isLoading, isE
               <Skeleton className="h-8 w-40" />
             ) : (
               <p className="text-3xl font-semibold text-white">
-                R$ {formatCurrency(summary.expenses)}
+                {formatCurrency(summary.expenses)}
               </p>
             )}
             <p className="text-sm text-white/90 flex items-center mt-2">
@@ -107,7 +107,7 @@ export const SummaryCards = memo(function SummaryCards({ summary, isLoading, isE
             {isLoading ? (
               <Skeleton className="h-8 w-40" />
             ) : summary.savingsGoal !== undefined ? (
-              <p className="text-3xl font-semibold text-white">R$ {formatCurrency(summary.savingsGoal)}</p>
+              <p className="text-3xl font-semibold text-white">{formatCurrency(summary.savingsGoal)}</p>
             ) : (
               <p className="text-xl font-semibold text-white/70">Não definida</p>
             )}
