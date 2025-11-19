@@ -1,13 +1,13 @@
 import React from 'react';
 import { Bar } from 'react-chartjs-2';
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend 
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
 } from 'chart.js';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,11 +31,19 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
         label: 'Receitas',
         data: data.map(item => item.income),
         backgroundColor: '#10B981',
+        barPercentage: 0.6,
+        categoryPercentage: 0.8,
+        maxBarThickness: 40,
+        borderRadius: 4,
       },
       {
         label: 'Despesas',
         data: data.map(item => item.expenses),
         backgroundColor: '#F87171',
+        barPercentage: 0.6,
+        categoryPercentage: 0.8,
+        maxBarThickness: 40,
+        borderRadius: 4,
       }
     ]
   }), [data]);
@@ -72,7 +80,31 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
         </div>
       </div>
       <div className="chart-container">
-        <Bar data={chartData} options={barChartOptions} />
+        <Bar
+          data={chartData}
+          options={{
+            ...barChartOptions,
+            maintainAspectRatio: false,
+            scales: {
+              ...barChartOptions.scales,
+              x: {
+                ...barChartOptions.scales?.x,
+                grid: {
+                  display: false,
+                }
+              },
+              y: {
+                ...barChartOptions.scales?.y,
+                border: {
+                  display: false
+                },
+                grid: {
+                  color: 'rgba(0, 0, 0, 0.05)',
+                }
+              }
+            }
+          }}
+        />
       </div>
     </Card>
   );

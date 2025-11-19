@@ -1,4 +1,5 @@
 import { ChartOptions } from 'chart.js';
+import { formatCurrency } from './utils';
 
 export const chartColors = {
   primary: '#4A56E2',
@@ -34,12 +35,12 @@ export const pieChartOptions: ChartOptions<'doughnut'> = {
     ...defaultChartOptions.plugins,
     tooltip: {
       callbacks: {
-        label: function(context) {
+        label: function (context) {
           const value = context.parsed;
           const dataset = context.dataset;
           const total = dataset.data.reduce((a: number, b: number) => a + b, 0);
           const percentage = ((value / total) * 100).toFixed(1);
-          return `${context.label}: R$ ${value.toLocaleString('pt-BR')} (${percentage}%)`;
+          return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
         }
       }
     }
@@ -52,8 +53,8 @@ export const lineChartOptions: ChartOptions<'line'> = {
     y: {
       beginAtZero: true,
       ticks: {
-        callback: function(value) {
-          return 'R$ ' + Number(value).toLocaleString('pt-BR');
+        callback: function (value) {
+          return formatCurrency(Number(value));
         }
       }
     }
@@ -62,8 +63,8 @@ export const lineChartOptions: ChartOptions<'line'> = {
     ...defaultChartOptions.plugins,
     tooltip: {
       callbacks: {
-        label: function(context) {
-          return `${context.dataset.label}: R$ ${context.parsed.y.toLocaleString('pt-BR')}`;
+        label: function (context) {
+          return `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`;
         }
       }
     }
@@ -76,8 +77,8 @@ export const barChartOptions: ChartOptions<'bar'> = {
     y: {
       beginAtZero: true,
       ticks: {
-        callback: function(value) {
-          return 'R$ ' + Number(value).toLocaleString('pt-BR');
+        callback: function (value) {
+          return formatCurrency(Number(value));
         }
       }
     }
@@ -86,8 +87,8 @@ export const barChartOptions: ChartOptions<'bar'> = {
     ...defaultChartOptions.plugins,
     tooltip: {
       callbacks: {
-        label: function(context) {
-          return `${context.dataset.label}: R$ ${context.parsed.y.toLocaleString('pt-BR')}`;
+        label: function (context) {
+          return `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`;
         }
       }
     }
