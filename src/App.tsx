@@ -5,6 +5,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/dashboard";
 import TransactionsPage from "@/pages/transactions";
+import ReportsPage from "@/pages/reports";
+import GoalsPage from "@/pages/goals";
+import ProfilePage from "@/pages/profile";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import AppLayout from "@/layouts/AppLayout";
@@ -17,6 +20,9 @@ function ProtectedRoutes() {
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/transactions" component={TransactionsPage} />
+          <Route path="/reports" component={ReportsPage} />
+          <Route path="/goals" component={GoalsPage} />
+          <Route path="/profile" component={ProfilePage} />
           <Route component={NotFound} />
         </Switch>
       </AppLayout>

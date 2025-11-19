@@ -155,9 +155,12 @@ export interface Transaction {
   value: number;
   payment_method: string;
   date: string; // ISO date string
+  // Tags retornadas como array (formato real da API)
+  tags?: Tag[];
 }
 
 export interface ListTransactionsQuery {
+  organization_id?: string;
   type?: 'income' | 'expense';
   category?: string;
   payment_method?: string;
@@ -275,5 +278,37 @@ export interface TagsResponse {
 export interface ApiError {
   detail: string;
   status?: number;
+}
+
+// ===== METAS (GOALS) =====
+export interface Goal {
+  id: string;
+  organization_id: string;
+  name: string;
+  description?: string;
+  target_amount: number;
+  current_amount: number;
+  target_date?: string; // ISO date string
+  category?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateGoalRequest {
+  organization_id: string;
+  name: string;
+  description?: string;
+  target_amount: number;
+  target_date?: string;
+  category?: string;
+}
+
+export interface UpdateGoalRequest {
+  name?: string;
+  description?: string;
+  target_amount?: number;
+  current_amount?: number;
+  target_date?: string;
+  category?: string;
 }
 

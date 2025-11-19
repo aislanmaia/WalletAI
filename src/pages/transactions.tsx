@@ -114,7 +114,7 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 max-w-7xl xl:max-w-[90rem] 2xl:max-w-[96rem]">
       <div className="mt-4 mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/">
@@ -145,11 +145,11 @@ export default function TransactionsPage() {
               <SelectTrigger id="tx-type" aria-labelledby="tx-type-label" className="rounded-xl h-10 border-[#D1D5DB] bg-white text-[#111827] shadow-sm focus-visible:ring-2 focus-visible:ring-[#4A56E2] focus-visible:ring-offset-1">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todas</SelectItem>
-            <SelectItem value="receitas">Receitas</SelectItem>
-            <SelectItem value="despesas">Despesas</SelectItem>
-          </SelectContent>
+              <SelectContent>
+                <SelectItem value="todas">Todas</SelectItem>
+                <SelectItem value="receitas">Receitas</SelectItem>
+                <SelectItem value="despesas">Despesas</SelectItem>
+              </SelectContent>
             </Select>
           </div>
           <div>
@@ -158,12 +158,12 @@ export default function TransactionsPage() {
               <SelectTrigger id="tx-period" aria-labelledby="tx-period-label" className="rounded-xl h-10 border-[#D1D5DB] bg-white text-[#111827] shadow-sm focus-visible:ring-2 focus-visible:ring-[#4A56E2] focus-visible:ring-offset-1">
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="tudo">Tudo</SelectItem>
-            <SelectItem value="7d">Últimos 7 dias</SelectItem>
-            <SelectItem value="30d">Últimos 30 dias</SelectItem>
-            <SelectItem value="90d">Últimos 90 dias</SelectItem>
-          </SelectContent>
+              <SelectContent>
+                <SelectItem value="tudo">Tudo</SelectItem>
+                <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                <SelectItem value="90d">Últimos 90 dias</SelectItem>
+              </SelectContent>
             </Select>
           </div>
           <div>
@@ -172,12 +172,12 @@ export default function TransactionsPage() {
               <SelectTrigger id="tx-category" aria-labelledby="tx-category-label" className="rounded-xl h-10 border-[#D1D5DB] bg-white text-[#111827] shadow-sm focus-visible:ring-2 focus-visible:ring-[#4A56E2] focus-visible:ring-offset-1">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todas</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
+              <SelectContent>
+                <SelectItem value="todas">Todas</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         </div>
