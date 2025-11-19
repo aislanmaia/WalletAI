@@ -48,7 +48,7 @@ export default function Dashboard() {
 
   return (
     <PageTransition>
-      <div className="mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 max-w-7xl xl:max-w-[90rem] 2xl:max-w-[96rem]">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 max-w-7xl xl:max-w-[95%] 2xl:max-w-[1800px]">
         {/* Loading State */}
         {loading && !isDemo && (
           <div className="mb-8 p-4 bg-[#E6F0F6] supports-[backdrop-filter]:bg-[#E6F0F6]/80 backdrop-blur border border-[#00C6B8]/30 rounded-xl">

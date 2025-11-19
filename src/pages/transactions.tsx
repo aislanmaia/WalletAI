@@ -120,7 +120,7 @@ export default function TransactionsPage() {
 
   return (
     <PageTransition>
-      <div className="mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 max-w-7xl xl:max-w-[90rem] 2xl:max-w-[96rem]">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 max-w-7xl xl:max-w-[95%] 2xl:max-w-[1800px]">
         <div className="mt-4 mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/">

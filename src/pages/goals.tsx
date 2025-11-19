@@ -99,7 +99,7 @@ export default function GoalsPage() {
 
     return (
         <PageTransition>
-            <div className="mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 max-w-7xl xl:max-w-[90rem] 2xl:max-w-[96rem] space-y-8">
+            <div className="mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 max-w-7xl xl:max-w-[95%] 2xl:max-w-[1800px] space-y-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Metas Financeiras</h1>
