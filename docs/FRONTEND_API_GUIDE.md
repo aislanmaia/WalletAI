@@ -11,11 +11,13 @@ Este documento fornece uma referência completa da API REST para desenvolvedores
 5. [Endpoints de Usuários](#endpoints-de-usuários)
 6. [Endpoints de Organizações](#endpoints-de-organizações)
 7. [Endpoints de Memberships](#endpoints-de-memberships)
-8. [Endpoints de Transações](#endpoints-de-transações)
-9. [Endpoints de Cartões de Crédito](#endpoints-de-cartões-de-crédito)
-10. [Endpoints de Chat/AI](#endpoints-de-chatai)
-11. [Tratamento de Erros](#tratamento-de-erros)
-12. [Exemplos de Uso](#exemplos-de-uso)
+8. [Endpoints de Tag Types](#endpoints-de-tag-types)
+9. [Endpoints de Tags](#endpoints-de-tags)
+10. [Endpoints de Transações](#endpoints-de-transações)
+11. [Endpoints de Cartões de Crédito](#endpoints-de-cartões-de-crédito)
+12. [Endpoints de Chat/AI](#endpoints-de-chatai)
+13. [Tratamento de Erros](#tratamento-de-erros)
+14. [Exemplos de Uso](#exemplos-de-uso)
 
 ---
 
@@ -235,12 +237,60 @@ export interface RegisterMemberResponse {
   };
 }
 
+// ===== TAG TYPES =====
+export interface TagType {
+  id: string;
+  name: string;
+  description: string | null;
+  is_required: boolean;
+  max_per_transaction: number | null;
+}
+
+export interface TagTypesResponse {
+  tag_types: TagType[];
+}
+
+// ===== TAGS =====
+export interface TagTypeInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  is_required: boolean;
+  max_per_transaction: number | null;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  tag_type: TagTypeInfo;
+  color: string | null;
+  is_default: boolean;
+  is_active: boolean;
+  organization_id: string;
+}
+
+export interface CreateTagRequest {
+  name: string;
+  tag_type_id: string;
+  color?: string | null;
+}
+
+export interface UpdateTagRequest {
+  name: string;
+  tag_type_id: string;
+  color?: string | null;
+}
+
+export interface TagsResponse {
+  tags: Tag[];
+}
+
 // ===== TRANSAÇÕES =====
 export interface CreateTransactionRequest {
   organization_id: string;
   type: 'income' | 'expense';
   description: string;
-  category: string;
+  tag_ids: string[]; // Lista de UUIDs das tags (pelo menos uma tag do tipo 'categoria' é obrigatória)
   value: number; // Decimal como number
   payment_method: string;
   date: string; // ISO date string (YYYY-MM-DD)
@@ -248,6 +298,8 @@ export interface CreateTransactionRequest {
   card_last4?: string | null;
   modality?: 'cash' | 'installment' | null;
   installments_count?: number | null;
+  // Campo legado - mantido para compatibilidade durante migração
+  category?: string | null;
 }
 
 export interface Transaction {
@@ -255,10 +307,12 @@ export interface Transaction {
   organization_id: string;
   type: 'income' | 'expense';
   description: string;
-  category: string;
+  tags: Record<string, Tag[]>; // Tags agrupadas por nome do tipo (ex: { "categoria": [Tag], "projeto": [Tag] })
   value: number;
   payment_method: string;
   date: string; // ISO date string
+  // Campo legado - mantido para compatibilidade durante migração
+  category?: string | null;
 }
 
 export interface ListTransactionsQuery {
@@ -665,6 +719,245 @@ const removeMember = async (
 
 ---
 
+## 🏷️ Endpoints de Tag Types
+
+### GET `/api/v1/tag-types`
+
+Lista todos os tipos de tags disponíveis no sistema com seus metadados.
+
+**Request:**
+```typescript
+const listTagTypes = async (): Promise<TagTypesResponse> => {
+  const response = await apiClient.get<TagTypesResponse>('/api/v1/tag-types');
+  return response.data;
+};
+```
+
+**Response (200):**
+```typescript
+{
+  tag_types: [
+    {
+      id: "123e4567-e89b-12d3-a456-426614174000",
+      name: "categoria",
+      description: "Categoria da transação",
+      is_required: true,
+      max_per_transaction: 1
+    },
+    {
+      id: "456e7890-e89b-12d3-a456-426614174000",
+      name: "projeto",
+      description: "Projeto relacionado",
+      is_required: false,
+      max_per_transaction: null
+    }
+  ]
+}
+```
+
+**Notas:**
+- `is_required`: Indica se pelo menos uma tag deste tipo é obrigatória em cada transação
+- `max_per_transaction`: Limite máximo de tags deste tipo por transação (null = sem limite)
+- Tipos de tags comuns: "categoria", "projeto", "cliente", etc.
+
+**Erros:**
+- `500`: Erro interno do servidor
+
+---
+
+## 🏷️ Endpoints de Tags
+
+### GET `/api/v1/tags`
+
+Lista todas as tags de uma organização, opcionalmente filtradas por tipo de tag.
+
+**Request:**
+```typescript
+const listTags = async (
+  organizationId: string,
+  tagType?: string
+): Promise<TagsResponse> => {
+  const response = await apiClient.get<TagsResponse>('/api/v1/tags', {
+    params: {
+      organization_id: organizationId,
+      tag_type: tagType, // Opcional: nome do tipo de tag (ex: "categoria")
+    },
+  });
+  return response.data;
+};
+```
+
+**Exemplos de Uso:**
+```typescript
+// Listar todas as tags da organização
+await listTags("123e4567-e89b-12d3-a456-426614174000");
+
+// Filtrar apenas tags do tipo "categoria"
+await listTags("123e4567-e89b-12d3-a456-426614174000", "categoria");
+```
+
+**Response (200):**
+```typescript
+{
+  tags: [
+    {
+      id: "789e0123-e89b-12d3-a456-426614174000",
+      name: "Alimentação",
+      tag_type: {
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        name: "categoria",
+        description: "Categoria da transação",
+        is_required: true,
+        max_per_transaction: 1
+      },
+      color: "#FF5733",
+      is_default: true,
+      is_active: true,
+      organization_id: "123e4567-e89b-12d3-a456-426614174000"
+    }
+  ]
+}
+```
+
+**Erros:**
+- `400`: Tipo de tag não encontrado (quando usando filtro tag_type)
+- `403`: Usuário não tem acesso à organização
+- `500`: Erro interno do servidor
+
+---
+
+### POST `/api/v1/tags`
+
+Cria uma nova tag personalizada para uma organização.
+
+**Request:**
+```typescript
+const createTag = async (
+  organizationId: string,
+  tag: CreateTagRequest
+): Promise<Tag> => {
+  const response = await apiClient.post<Tag>(
+    '/api/v1/tags',
+    tag,
+    {
+      params: {
+        organization_id: organizationId,
+      },
+    }
+  );
+  return response.data;
+};
+```
+
+**Exemplo:**
+```typescript
+await createTag("123e4567-e89b-12d3-a456-426614174000", {
+  name: "Marketing Digital",
+  tag_type_id: "123e4567-e89b-12d3-a456-426614174000", // ID do tipo "categoria"
+  color: "#9B59B6", // Opcional: cor em hexadecimal
+});
+```
+
+**Response (201):**
+```typescript
+{
+  id: "789e0123-e89b-12d3-a456-426614174000",
+  name: "Marketing Digital",
+  tag_type: {
+    id: "123e4567-e89b-12d3-a456-426614174000",
+    name: "categoria",
+    description: "Categoria da transação",
+    is_required: true,
+    max_per_transaction: 1
+  },
+  color: "#9B59B6",
+  is_default: false,
+  is_active: true,
+  organization_id: "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+**Erros:**
+- `400`: Dados inválidos, tag duplicada ou regra de negócio violada
+- `403`: Usuário não tem acesso à organização
+
+---
+
+### PATCH `/api/v1/tags/{tag_id}`
+
+Atualiza uma tag existente.
+
+**Request:**
+```typescript
+const updateTag = async (
+  tagId: string,
+  tag: UpdateTagRequest
+): Promise<Tag> => {
+  const response = await apiClient.patch<Tag>(
+    `/api/v1/tags/${tagId}`,
+    tag
+  );
+  return response.data;
+};
+```
+
+**Exemplo:**
+```typescript
+await updateTag("789e0123-e89b-12d3-a456-426614174000", {
+  name: "Marketing e Publicidade",
+  tag_type_id: "123e4567-e89b-12d3-a456-426614174000",
+  color: "#8E44AD",
+});
+```
+
+**Response (200):**
+```typescript
+{
+  id: "789e0123-e89b-12d3-a456-426614174000",
+  name: "Marketing e Publicidade",
+  tag_type: {
+    id: "123e4567-e89b-12d3-a456-426614174000",
+    name: "categoria",
+    description: "Categoria da transação",
+    is_required: true,
+    max_per_transaction: 1
+  },
+  color: "#8E44AD",
+  is_default: false,
+  is_active: true,
+  organization_id: "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+**Erros:**
+- `400`: Dados inválidos ou regra de negócio violada
+- `404`: Tag não encontrada
+
+---
+
+### DELETE `/api/v1/tags/{tag_id}`
+
+Remove uma tag (soft delete - define `is_active=false`).
+
+**Request:**
+```typescript
+const deleteTag = async (tagId: string): Promise<void> => {
+  await apiClient.delete(`/api/v1/tags/${tagId}`);
+};
+```
+
+**Response (204):** Sem conteúdo
+
+**Notas:**
+- A tag não é removida fisicamente, apenas marcada como inativa (`is_active=false`)
+- Tags inativas não aparecem nas listagens, mas podem ser reativadas atualizando a tag
+
+**Erros:**
+- `400`: Erro ao deletar tag
+- `404`: Tag não encontrada
+
+---
+
 ## 💰 Endpoints de Transações
 
 ### POST `/api/v1/transactions`
@@ -684,16 +977,20 @@ const createTransaction = async (
 };
 ```
 
-**Exemplo - Transação Simples:**
+**Exemplo - Transação Simples com Tags:**
 ```typescript
 await createTransaction({
   organization_id: "123e4567-e89b-12d3-a456-426614174000",
   type: "expense",
   description: "Compra no supermercado",
-  category: "Alimentação",
+  tag_ids: [
+    "789e0123-e89b-12d3-a456-426614174000", // Tag "Alimentação" (tipo: categoria)
+    "abc12345-e89b-12d3-a456-426614174000", // Tag "Projeto X" (tipo: projeto)
+  ],
   value: 150.50,
   payment_method: "PIX",
   date: "2025-01-15",
+  // category: "Alimentação", // Campo legado - opcional durante migração
 });
 ```
 
@@ -703,7 +1000,9 @@ await createTransaction({
   organization_id: "123e4567-e89b-12d3-a456-426614174000",
   type: "expense",
   description: "Compra na loja",
-  category: "Compras",
+  tag_ids: [
+    "def45678-e89b-12d3-a456-426614174000", // Tag "Compras" (tipo: categoria)
+  ],
   value: 500.00,
   payment_method: "Cartão de Crédito",
   date: "2025-01-15",
@@ -718,7 +1017,9 @@ await createTransaction({
   organization_id: "123e4567-e89b-12d3-a456-426614174000",
   type: "expense",
   description: "Compra parcelada",
-  category: "Eletrônicos",
+  tag_ids: [
+    "ghi78901-e89b-12d3-a456-426614174000", // Tag "Eletrônicos" (tipo: categoria)
+  ],
   value: 2000.00,
   payment_method: "Cartão de Crédito",
   date: "2025-01-15",
@@ -728,6 +1029,11 @@ await createTransaction({
 });
 ```
 
+**Notas Importantes:**
+- `tag_ids` é **obrigatório** e deve conter pelo menos uma tag do tipo "categoria" (ou outro tipo marcado como `is_required: true`)
+- Cada tipo de tag tem um limite máximo por transação (`max_per_transaction`)
+- O campo `category` é legado e opcional durante a migração, mas será removido no futuro
+
 **Response (201):**
 ```typescript
 {
@@ -735,10 +1041,46 @@ await createTransaction({
   organization_id: "123e4567-e89b-12d3-a456-426614174000",
   type: "expense",
   description: "Compra no supermercado",
-  category: "Alimentação",
+  tags: {
+    "categoria": [
+      {
+        id: "789e0123-e89b-12d3-a456-426614174000",
+        name: "Alimentação",
+        tag_type: {
+          id: "123e4567-e89b-12d3-a456-426614174000",
+          name: "categoria",
+          description: "Categoria da transação",
+          is_required: true,
+          max_per_transaction: 1
+        },
+        color: "#FF5733",
+        is_default: true,
+        is_active: true,
+        organization_id: "123e4567-e89b-12d3-a456-426614174000"
+      }
+    ],
+    "projeto": [
+      {
+        id: "abc12345-e89b-12d3-a456-426614174000",
+        name: "Projeto X",
+        tag_type: {
+          id: "456e7890-e89b-12d3-a456-426614174000",
+          name: "projeto",
+          description: "Projeto relacionado",
+          is_required: false,
+          max_per_transaction: null
+        },
+        color: "#3498DB",
+        is_default: false,
+        is_active: true,
+        organization_id: "123e4567-e89b-12d3-a456-426614174000"
+      }
+    ]
+  },
   value: 150.50,
   payment_method: "PIX",
-  date: "2025-01-15"
+  date: "2025-01-15",
+  category: "Alimentação" // Campo legado - mantido para compatibilidade
 }
 ```
 
@@ -825,10 +1167,29 @@ const orgTransactions = allTransactions.filter(
     organization_id: "123e4567-e89b-12d3-a456-426614174000",
     type: "expense",
     description: "Compra no supermercado",
-    category: "Alimentação",
+    tags: {
+      "categoria": [
+        {
+          id: "789e0123-e89b-12d3-a456-426614174000",
+          name: "Alimentação",
+          tag_type: {
+            id: "123e4567-e89b-12d3-a456-426614174000",
+            name: "categoria",
+            description: "Categoria da transação",
+            is_required: true,
+            max_per_transaction: 1
+          },
+          color: "#FF5733",
+          is_default: true,
+          is_active: true,
+          organization_id: "123e4567-e89b-12d3-a456-426614174000"
+        }
+      ]
+    },
     value: 150.50,
     payment_method: "PIX",
-    date: "2025-01-15"
+    date: "2025-01-15",
+    category: "Alimentação" // Campo legado - mantido para compatibilidade
   }
 ]
 ```
@@ -1091,6 +1452,63 @@ try {
 
 ## 📚 Exemplos de Uso
 
+### Funções de API para Tags
+
+```typescript
+// api/tags.ts
+import apiClient from './client';
+import { TagTypesResponse, TagsResponse, Tag, CreateTagRequest, UpdateTagRequest } from '../types/api';
+
+export const listTagTypes = async (): Promise<TagTypesResponse> => {
+  const response = await apiClient.get<TagTypesResponse>('/api/v1/tag-types');
+  return response.data;
+};
+
+export const listTags = async (
+  organizationId: string,
+  tagType?: string
+): Promise<TagsResponse> => {
+  const response = await apiClient.get<TagsResponse>('/api/v1/tags', {
+    params: {
+      organization_id: organizationId,
+      tag_type: tagType,
+    },
+  });
+  return response.data;
+};
+
+export const createTag = async (
+  organizationId: string,
+  tag: CreateTagRequest
+): Promise<Tag> => {
+  const response = await apiClient.post<Tag>(
+    '/api/v1/tags',
+    tag,
+    {
+      params: {
+        organization_id: organizationId,
+      },
+    }
+  );
+  return response.data;
+};
+
+export const updateTag = async (
+  tagId: string,
+  tag: UpdateTagRequest
+): Promise<Tag> => {
+  const response = await apiClient.patch<Tag>(
+    `/api/v1/tags/${tagId}`,
+    tag
+  );
+  return response.data;
+};
+
+export const deleteTag = async (tagId: string): Promise<void> => {
+  await apiClient.delete(`/api/v1/tags/${tagId}`);
+};
+```
+
 ### Hook Customizado para Autenticação
 
 ```typescript
@@ -1245,6 +1663,255 @@ export const TransactionList: React.FC<TransactionListProps> = ({ organizationId
 };
 ```
 
+### Componente de Criação de Transação com Tags
+
+```typescript
+// components/CreateTransactionForm.tsx
+import { useState, useEffect } from 'react';
+import { createTransaction, CreateTransactionRequest } from '../api/transactions';
+import { listTags, listTagTypes, Tag, TagType } from '../api/tags';
+import { handleApiError } from '../utils/errorHandler';
+
+interface CreateTransactionFormProps {
+  organizationId: string;
+  onSuccess?: () => void;
+}
+
+export const CreateTransactionForm: React.FC<CreateTransactionFormProps> = ({
+  organizationId,
+  onSuccess,
+}) => {
+  const [tagTypes, setTagTypes] = useState<TagType[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Carregar tipos de tags e tags disponíveis
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [tagTypesRes, tagsRes] = await Promise.all([
+          listTagTypes(),
+          listTags(organizationId),
+        ]);
+        setTagTypes(tagTypesRes.tag_types);
+        setTags(tagsRes.tags);
+      } catch (err) {
+        setError(handleApiError(err));
+      }
+    };
+    loadData();
+  }, [organizationId]);
+
+  // Agrupar tags por tipo
+  const tagsByType = tagTypes.reduce((acc, tagType) => {
+    acc[tagType.id] = tags.filter((tag) => tag.tag_type.id === tagType.id);
+    return acc;
+  }, {} as Record<string, Tag[]>);
+
+  // Validar tags selecionadas
+  const validateTags = (): boolean => {
+    // Verificar se todos os tipos obrigatórios estão presentes
+    const requiredTypes = tagTypes.filter((tt) => tt.is_required);
+    for (const requiredType of requiredTypes) {
+      const hasTagOfType = selectedTagIds.some((tagId) => {
+        const tag = tags.find((t) => t.id === tagId);
+        return tag?.tag_type.id === requiredType.id;
+      });
+      if (!hasTagOfType) {
+        setError(`É obrigatório selecionar pelo menos uma tag do tipo "${requiredType.name}"`);
+        return false;
+      }
+    }
+
+    // Verificar limites por tipo
+    for (const tagType of tagTypes) {
+      if (tagType.max_per_transaction !== null) {
+        const count = selectedTagIds.filter((tagId) => {
+          const tag = tags.find((t) => t.id === tagId);
+          return tag?.tag_type.id === tagType.id;
+        }).length;
+        if (count > tagType.max_per_transaction) {
+          setError(
+            `Você pode selecionar no máximo ${tagType.max_per_transaction} tag(s) do tipo "${tagType.name}"`
+          );
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!validateTags()) {
+      return;
+    }
+
+    const formData = new FormData(e.currentTarget);
+    const transactionData: CreateTransactionRequest = {
+      organization_id: organizationId,
+      type: formData.get('type') as 'income' | 'expense',
+      description: formData.get('description') as string,
+      tag_ids: selectedTagIds,
+      value: parseFloat(formData.get('value') as string),
+      payment_method: formData.get('payment_method') as string,
+      date: formData.get('date') as string,
+    };
+
+    try {
+      setLoading(true);
+      await createTransaction(transactionData);
+      onSuccess?.();
+      // Reset form
+      e.currentTarget.reset();
+      setSelectedTagIds([]);
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h2>Criar Transação</h2>
+      {error && <div style={{ color: 'red' }}>{error}</div>}
+
+      <div>
+        <label>Tipo:</label>
+        <select name="type" required>
+          <option value="expense">Despesa</option>
+          <option value="income">Receita</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Descrição:</label>
+        <input type="text" name="description" required />
+      </div>
+
+      <div>
+        <label>Valor:</label>
+        <input type="number" step="0.01" name="value" required />
+      </div>
+
+      <div>
+        <label>Método de Pagamento:</label>
+        <input type="text" name="payment_method" required />
+      </div>
+
+      <div>
+        <label>Data:</label>
+        <input type="date" name="date" required />
+      </div>
+
+      {/* Seleção de Tags por Tipo */}
+      {tagTypes.map((tagType) => (
+        <div key={tagType.id}>
+          <label>
+            {tagType.name}
+            {tagType.is_required && <span style={{ color: 'red' }}> *</span>}
+            {tagType.max_per_transaction && (
+              <span> (máx. {tagType.max_per_transaction})</span>
+            )}
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {tagsByType[tagType.id]?.map((tag) => {
+              const isSelected = selectedTagIds.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleTag(tag.id)}
+                  style={{
+                    padding: '4px 12px',
+                    border: `2px solid ${isSelected ? tag.color || '#007bff' : '#ccc'}`,
+                    backgroundColor: isSelected ? tag.color || '#007bff' : 'white',
+                    color: isSelected ? 'white' : 'black',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {tag.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      <button type="submit" disabled={loading}>
+        {loading ? 'Criando...' : 'Criar Transação'}
+      </button>
+    </form>
+  );
+};
+```
+
+### Hook para Tags
+
+```typescript
+// hooks/useTags.ts
+import { useState, useEffect } from 'react';
+import { listTags, listTagTypes, Tag, TagType } from '../api/tags';
+import { handleApiError } from '../utils/errorHandler';
+
+export const useTags = (organizationId: string) => {
+  const [tagTypes, setTagTypes] = useState<TagType[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadTags = async () => {
+      try {
+        setLoading(true);
+        const [tagTypesRes, tagsRes] = await Promise.all([
+          listTagTypes(),
+          listTags(organizationId),
+        ]);
+        setTagTypes(tagTypesRes.tag_types);
+        setTags(tagsRes.tags);
+        setError(null);
+      } catch (err) {
+        setError(handleApiError(err));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (organizationId) {
+      loadTags();
+    }
+  }, [organizationId]);
+
+  // Agrupar tags por tipo
+  const tagsByType = tagTypes.reduce((acc, tagType) => {
+    acc[tagType.name] = tags.filter((tag) => tag.tag_type.name === tagType.name);
+    return acc;
+  }, {} as Record<string, Tag[]>);
+
+  return {
+    tagTypes,
+    tags,
+    tagsByType,
+    loading,
+    error,
+  };
+};
+```
+
 ---
 
 ## 🔗 Links Úteis
@@ -1263,6 +1930,12 @@ export const TransactionList: React.FC<TransactionListProps> = ({ organizationId
 4. **Datas**: Use formato ISO (YYYY-MM-DD) para campos de data
 5. **Valores**: Use números (não strings) para valores monetários
 6. **UUIDs**: Todos os IDs de organização e usuário são UUIDs (strings)
+7. **Sistema de Tags**:
+   - Todas as transações **devem** ter pelo menos uma tag do tipo obrigatório (geralmente "categoria")
+   - Cada tipo de tag pode ter um limite máximo por transação (`max_per_transaction`)
+   - Tags são agrupadas por tipo na resposta de transações (`tags: { "categoria": [...], "projeto": [...] }`)
+   - Tags podem ser criadas, atualizadas e removidas (soft delete) por organização
+   - O campo `category` nas transações é legado e será removido no futuro - use `tag_ids` em vez disso
 
 ---
 

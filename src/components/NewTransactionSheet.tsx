@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment, useMemo } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { createTransaction } from '@/api/transactions';
 import { getMyOrganizations } from '@/api/organizations';
-import { listTags } from '@/api/tags';
+import { listTags, listTagTypes } from '@/api/tags';
 import { CreateTransactionRequest } from '@/types/api';
 import { handleApiError } from '@/api/client';
 import {
@@ -15,6 +15,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Form,
@@ -36,7 +44,7 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, TrendingUp, TrendingDown, Check, CreditCard, Wallet, Banknote, Building2, Receipt, Plus, Calendar, Tag, DollarSign, FileText, ShoppingBag, Clock, Search, MapPin, User, FolderOpen, StickyNote, X } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, Check, CreditCard, Wallet, Banknote, Building2, Receipt, Plus, Calendar, Tag, DollarSign, FileText, ShoppingBag, Clock, Search, MapPin, User, FolderOpen, StickyNote, X, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { SearchableSelect } from '@/components/SearchableSelect';
@@ -48,50 +56,126 @@ import { CategoryChip } from '@/components/CategoryChip';
 import { CompactTagChip } from '@/components/CompactTagChip';
 import { DateTimeInput } from '@/components/DateTimeInput';
 
-// Emojis e ícones para tipos de tags
-const tagTypeConfig: Record<TagType, { emoji: string; icon: React.ComponentType<{ className?: string }>; label: string }> = {
-  Local: { emoji: '📍', icon: MapPin, label: 'Local' },
-  Pessoa: { emoji: '👤', icon: User, label: 'Pessoa' },
-  Projeto: { emoji: '📁', icon: FolderOpen, label: 'Projeto' },
-  Nota: { emoji: '📝', icon: StickyNote, label: 'Nota' },
+// Mapeamento de emojis e ícones para tipos de tags (baseado no nome do tipo)
+const getTagTypeConfig = (typeName: string): { emoji: string; icon: React.ComponentType<{ className?: string }>; label: string } => {
+  const normalizedName = typeName.toLowerCase();
+  const configMap: Record<string, { emoji: string; icon: React.ComponentType<{ className?: string }>; label: string }> = {
+    categoria: { emoji: '🏷️', icon: Tag, label: 'Categoria' },
+    category: { emoji: '🏷️', icon: Tag, label: 'Categoria' },
+    local: { emoji: '📍', icon: MapPin, label: 'Local' },
+    location: { emoji: '📍', icon: MapPin, label: 'Local' },
+    pessoa: { emoji: '👤', icon: User, label: 'Pessoa' },
+    person: { emoji: '👤', icon: User, label: 'Pessoa' },
+    projeto: { emoji: '📁', icon: FolderOpen, label: 'Projeto' },
+    project: { emoji: '📁', icon: FolderOpen, label: 'Projeto' },
+    nota: { emoji: '📝', icon: StickyNote, label: 'Nota' },
+    note: { emoji: '📝', icon: StickyNote, label: 'Nota' },
+    cliente: { emoji: '👥', icon: User, label: 'Cliente' },
+    client: { emoji: '👥', icon: User, label: 'Cliente' },
+  };
+
+  return configMap[normalizedName] || {
+    emoji: '🏷️',
+    icon: Tag,
+    label: typeName.charAt(0).toUpperCase() + typeName.slice(1)
+  };
 };
 
-// Componente: Prompt de Classificação Unificado
+// Componente: Prompt de Classificação Unificado (Blueprint v16)
 function ClassificationPrompt({
   category,
   onCategoryChange,
   categories,
   tags,
-  onTagAdd,
-  onTagRemove,
+  onTagToggle,
   onTagValueChange,
   disabled,
+  allTagsFromBackend = [],
+  tagTypesFromBackend = [],
+  onPanelStateChange,
+  isOpen: isOpenControlled,
 }: {
   category: string | null;
   onCategoryChange: (value: string) => void;
   categories: string[];
   tags: Array<{ type: TagType; value: string }>;
-  onTagAdd: (type: TagType, value: string) => void;
-  onTagRemove: (type: TagType) => void;
+  onTagToggle: (type: TagType, value: string) => void;
   onTagValueChange: (type: TagType, value: string | null) => void;
   disabled: boolean;
+  allTagsFromBackend?: Array<{ type: string; name: string }>;
+  tagTypesFromBackend?: Array<{ id: string; name: string; description: string | null; is_required: boolean; max_per_transaction: number | null }>;
+  onPanelStateChange?: (isOpen: boolean) => void;
+  isOpen?: boolean; // Prop controlada para permitir fechamento externo
 }) {
-  const [open, setOpen] = useState(false);
+  // Garantir que allTagsFromBackend sempre tenha um valor padrão
+  const backendTags = allTagsFromBackend || [];
+
+  // Estado para controlar se o painel está aberto (controlado ou não controlado)
+  const [isPanelOpenInternal, setIsPanelOpenInternal] = useState(false);
+
+  // Se isOpenControlled for fornecido, usar como estado controlado; caso contrário, usar estado interno
+  const isPanelOpen = isOpenControlled !== undefined ? isOpenControlled : isPanelOpenInternal;
+
+  // Função para atualizar o estado do painel
+  const setIsPanelOpen = (value: boolean) => {
+    if (isOpenControlled === undefined) {
+      // Modo não controlado: atualizar estado interno
+      setIsPanelOpenInternal(value);
+    }
+    // Sempre notificar o pai sobre mudanças
+    onPanelStateChange?.(value);
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const selectedIndexRef = useRef(0);
   const searchQueryRef = useRef('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  
+  const panelInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   // Sincronizar refs com states
   useEffect(() => {
     selectedIndexRef.current = selectedIndex;
   }, [selectedIndex]);
-  
-  useEffect(() => {
-    searchQueryRef.current = searchQuery;
-  }, [searchQuery]);
+
+  // Obter tags mais usadas para sugestões rápidas (max 5 por tipo)
+  const getQuickSuggestions = (): Array<{ type: string; value: string }> => {
+    const suggestions: Array<{ type: string; value: string }> = [];
+    const countsByType: Record<string, number> = {};
+
+    // Iterar sobre todas as tags e selecionar até 5 de cada tipo
+    for (const tag of backendTags) {
+      const type = tag.type;
+      const currentCount = countsByType[type] || 0;
+
+      if (currentCount < 5) {
+        suggestions.push({
+          type: tag.type,
+          value: tag.name,
+        });
+        countsByType[type] = currentCount + 1;
+      }
+    }
+
+    return suggestions;
+  };
+
+  // Agrupar tags por tipo para o painel
+  const getTagsByType = (): Record<string, Array<{ type: string; value: string }>> => {
+    const tagsByType: Record<string, Array<{ type: string; value: string }>> = {};
+    backendTags.forEach(tag => {
+      const tagType = tag.type.toLowerCase();
+      if (!tagsByType[tagType]) {
+        tagsByType[tagType] = [];
+      }
+      tagsByType[tagType].push({
+        type: tag.type,
+        value: tag.name,
+      });
+    });
+    return tagsByType;
+  };
 
   // Detectar padrão chave:valor
   const parseKeyValue = (query: string): { key: string; value: string } | null => {
@@ -103,45 +187,59 @@ function ClassificationPrompt({
   };
 
   // Verificar se a chave é um tipo válido (incluindo categoria)
-  const isValidTagType = (key: string): TagType | 'category' | null => {
+  const isValidTagType = (key: string): string | 'category' | null => {
     const normalizedKey = key.toLowerCase();
+
+    // Verificar se é categoria
     if (normalizedKey === 'categoria' || normalizedKey === 'category') {
       return 'category';
     }
-    const typeMap: Record<string, TagType> = {
-      local: 'Local',
-      pessoa: 'Pessoa',
-      projeto: 'Projeto',
-      nota: 'Nota',
-    };
-    return typeMap[normalizedKey] || null;
-  };
 
-  // Buscar tags existentes (mock - substituir por busca real)
-  const searchTags = (query: string): Array<{ type: TagType; value: string }> => {
-    // TODO: Implementar busca real de tags
-    const mockTags: Array<{ type: TagType; value: string }> = [];
-    return mockTags.filter(tag => 
-      tag.value.toLowerCase().includes(query.toLowerCase())
+    // Verificar se existe nos tipos do backend (excluindo categoria)
+    const tagType = tagTypesFromBackend.find(
+      tt => tt.name.toLowerCase() === normalizedKey && tt.name.toLowerCase() !== 'categoria'
     );
+
+    return tagType ? tagType.name : null;
   };
 
-  // Obter tags mais usadas (mock - substituir por dados reais)
-  const getMostUsedTags = (): Array<{ type: TagType; value: string }> => {
-    // TODO: Implementar busca de tags mais usadas
-    return [];
+  // Buscar tags existentes na lista do backend
+  const searchTags = (query: string): Array<{ type: string; value: string }> => {
+    const queryLower = query.toLowerCase();
+    // Obter nomes dos tipos do backend (excluindo categoria)
+    const supportedTypeNames = tagTypesFromBackend
+      .filter(tt => tt.name.toLowerCase() !== 'categoria')
+      .map(tt => tt.name.toLowerCase());
+
+    return backendTags
+      .filter(tag => {
+        // Filtrar apenas tags dos tipos suportados (não categoria)
+        return supportedTypeNames.includes(tag.type.toLowerCase()) &&
+          tag.name.toLowerCase().includes(queryLower);
+      })
+      .map(tag => ({
+        type: tag.type,
+        value: tag.name,
+      }));
   };
+
 
   // Processar a busca
   const getSearchResults = () => {
     const kv = parseKeyValue(searchQuery);
-    
+
     if (kv) {
       const tagType = isValidTagType(kv.key);
       if (!tagType) {
+        const allowedTypes = [
+          'Categoria',
+          ...tagTypesFromBackend
+            .filter(tt => tt.name.toLowerCase() !== 'categoria')
+            .map(tt => getTagTypeConfig(tt.name).label)
+        ];
         return {
           type: 'error' as const,
-          message: `Tipo "${kv.key}" não encontrado. Tipos permitidos: Categoria, ${Object.values(tagTypeConfig).map(t => t.label).join(', ')}`,
+          message: `Tipo "${kv.key}" não encontrado. Tipos permitidos: ${allowedTypes.join(', ')}`,
         };
       }
 
@@ -153,17 +251,27 @@ function ClassificationPrompt({
         };
       }
 
-      // Verificar se a tag já existe
-      const existingTag = tags.find(t => t.type === tagType && t.value.toLowerCase() === kv.value.toLowerCase());
-      if (existingTag) {
+      // Verificar se a tag já existe no backend
+      const existingTagInBackend = backendTags.find(
+        t => t.type.toLowerCase() === tagType.toLowerCase() &&
+          t.name.toLowerCase() === kv.value.toLowerCase()
+      );
+
+      // Verificar se já está adicionada na transação atual
+      const existingTagInTransaction = tags.find(
+        t => t.type === tagType && t.value.toLowerCase() === kv.value.toLowerCase()
+      );
+
+      if (existingTagInBackend) {
         return {
           type: 'assign' as const,
           tagType,
           value: kv.value,
-          existing: true,
+          existing: !!existingTagInTransaction,
         };
       }
 
+      // Se não existe no backend, oferecer criar
       return {
         type: 'create' as const,
         tagType,
@@ -174,21 +282,23 @@ function ClassificationPrompt({
     // Busca normal
     if (searchQuery.trim()) {
       const results: Array<{ type: TagType | 'category'; value: string; category: string }> = [];
-      
-      // Buscar em categorias
-      categories
-        .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()))
-        .forEach(cat => {
-          results.push({ type: 'category' as const, value: cat, category: 'Categoria' });
+      const queryLower = searchQuery.toLowerCase();
+
+      // Buscar em categorias do backend
+      backendTags
+        .filter(tag => tag.type === 'categoria' && tag.name.toLowerCase().includes(queryLower))
+        .forEach(tag => {
+          results.push({ type: 'category' as const, value: tag.name, category: 'Categoria' });
         });
 
-      // Buscar em tags
+      // Buscar em tags do backend
       const foundTags = searchTags(searchQuery);
       foundTags.forEach(tag => {
-        results.push({ type: tag.type, value: tag.value, category: tagTypeConfig[tag.type].label });
+        const config = getTagTypeConfig(tag.type);
+        results.push({ type: tag.type as any, value: tag.value, category: config.label });
       });
 
-      // Se não encontrou resultados, oferecer criar nova tag
+      // Se não encontrou resultados na lista completa do backend, oferecer criar nova tag
       if (results.length === 0) {
         return {
           type: 'create_new' as const,
@@ -202,63 +312,153 @@ function ClassificationPrompt({
           if (!acc[item.category]) acc[item.category] = [];
           acc[item.category].push(item);
           return acc;
-        }, {} as Record<string, Array<{ type: TagType | 'category'; value: string }>>),
+        }, {} as Record<string, Array<{ type: TagType | 'category'; value: string; category: string }>>),
       };
     }
 
-    // Sugestões imediatas
+    // Quando não há busca, mostrar todas as tags agrupadas por tipo
+    const tagsByType: Record<string, Array<{ type: string; value: string }>> = {};
+
+    // Agrupar todas as tags do backend por tipo
+    backendTags.forEach(tag => {
+      const tagType = tag.type.toLowerCase();
+      if (!tagsByType[tagType]) {
+        tagsByType[tagType] = [];
+      }
+      tagsByType[tagType].push({
+        type: tag.type,
+        value: tag.name,
+      });
+    });
+
     return {
-      type: 'suggestions' as const,
-      tags: getMostUsedTags(),
+      type: 'all_tags_by_type' as const,
+      tagsByType,
     };
   };
 
+  const results = useMemo(() => getSearchResults(), [searchQuery, backendTags, tags, categories, tagTypesFromBackend]);
+
+  const flatSearchResults = useMemo(() => {
+    if (results.type === 'search') {
+      return Object.values(results.results).flat();
+    }
+    return [];
+  }, [results]);
+
+  const quickSuggestions = getQuickSuggestions();
+  const tagsByType = getTagsByType();
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
+  // Sincronizar estado interno quando isOpenControlled muda (fechamento externo)
+  // Quando o pai força o fechamento, limpar o estado interno e a busca
+  useEffect(() => {
+    if (isOpenControlled !== undefined && !isOpenControlled) {
+      // Se o pai força o fechamento, limpar a busca e resetar estado interno
+      setSearchQuery('');
+      setSelectedIndex(0);
+      setIsPanelOpenInternal(false);
+    }
+  }, [isOpenControlled]);
+
+  // Notificar mudança de estado do painel
+  useEffect(() => {
+    onPanelStateChange?.(isPanelOpen);
+  }, [isPanelOpen, onPanelStateChange]);
+
+
+
   const handleSelect = useCallback((result: any, item?: any) => {
     if (result.type === 'assign' || result.type === 'create') {
-      onTagAdd(result.tagType, result.value);
+      onTagToggle(result.tagType, result.value);
       setSearchQuery('');
-      setOpen(false);
+      setIsPanelOpen(false);
     } else if (result.type === 'search' && item) {
       if (item.type === 'category') {
         onCategoryChange(item.value);
       } else {
-        onTagAdd(item.type as TagType, item.value);
+        onTagToggle(item.type as TagType, item.value);
       }
       setSearchQuery('');
-      setOpen(false);
+      setIsPanelOpen(false);
     } else if (result.type === 'create_new') {
       // Este caso não deve ser usado diretamente - as opções são tratadas individualmente
       // Por padrão, não fazer nada aqui - deixar o usuário escolher
     }
-  }, [onTagAdd, onCategoryChange]);
+  }, [onTagToggle, onCategoryChange]);
+
+  // Listener de teclado global: focar input quando usuário começar a digitar
+  // Listener de teclado global: focar input quando usuário começar a digitar
+  useEffect(() => {
+    if (disabled) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignorar se estiver digitando em um input, textarea, etc.
+      const target = e.target as HTMLElement;
+
+      // Se o alvo já for o nosso input do painel ou o input principal, não fazer nada (deixar nativo)
+      if (target === panelInputRef.current || target === inputRef.current) {
+        return;
+      }
+
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Se for uma letra, número ou caractere imprimível
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+
+        if (isPanelOpen) {
+          // Se o painel já estiver aberto, focar e adicionar o caractere
+          panelInputRef.current?.focus();
+          setSearchQuery(prev => prev + e.key);
+        } else {
+          // Se estiver fechado, abrir e definir o caractere
+          inputRef.current?.focus();
+          setSearchQuery(e.key);
+          setIsPanelOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [disabled, isPanelOpen]);
 
   // Resetar índice selecionado quando a busca muda ou quando o tipo de resultado muda
   useEffect(() => {
     setSelectedIndex(0);
   }, [searchQuery]);
-  
+
   // Resetar índice quando o tipo de resultado muda para create_new
   useEffect(() => {
-    const currentResults = getSearchResults();
-    if (currentResults.type === 'create_new' || currentResults.type === 'search' || currentResults.type === 'suggestions') {
+    if (results.type === 'create_new' || results.type === 'search') {
       setSelectedIndex(0);
     }
-  }, [searchQuery, tags, categories]);
+  }, [results]);
 
-  // Navegação por teclado
+  // Navegação por teclado no painel
   useEffect(() => {
-    if (!open) return;
+    if (!isPanelOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      const currentResults = getSearchResults();
-      const isInputFocused = e.target === inputRef.current;
-      
+      const activeInput = panelInputRef.current || inputRef.current;
+      const isInputFocused = e.target === activeInput;
+
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedIndex(prev => {
-          if (currentResults.type === 'search') {
-            const allItems = Object.values(currentResults.results).flat();
-            return Math.min(prev + 1, allItems.length - 1);
+          if (results.type === 'search') {
+            return Math.min(prev + 1, flatSearchResults.length - 1);
+          } else if (results.type === 'create_new') {
+            const maxIndex = tagTypesFromBackend.filter(tt => tt.name.toLowerCase() !== 'categoria').length;
+            return Math.min(prev + 1, maxIndex);
           }
           return prev;
         });
@@ -267,484 +467,557 @@ function ClassificationPrompt({
         setSelectedIndex(prev => Math.max(prev - 1, 0));
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        
+
         // Caso 1: Padrão chave:valor (assign ou create)
-        if (currentResults.type === 'assign' || currentResults.type === 'create') {
-          handleSelect(currentResults);
+        if (results.type === 'assign' || results.type === 'create') {
+          handleSelect(results);
           return;
         }
-        
+
         // Caso 2: Resultados de busca
-        if (currentResults.type === 'search') {
-          const allItems = Object.values(currentResults.results).flat();
-          const itemToSelect = allItems[selectedIndex] || allItems[0];
+        if (results.type === 'search') {
+          const itemToSelect = flatSearchResults[selectedIndex] || flatSearchResults[0];
           if (itemToSelect) {
-            handleSelect(currentResults, itemToSelect);
+            handleSelect(results, itemToSelect);
           }
           return;
         }
-        
+
         // Caso 3: Criar nova (quando não há resultados)
-        // Este caso é tratado pelo popover com opções individuais
-        // Não fazer nada aqui - deixar o usuário escolher
-        if (currentResults.type === 'create_new') {
-          // Não fazer nada - o popover mostra as opções
-          return;
-        }
-        
-        // Caso 4: Sugestões - selecionar primeira sugestão
-        if (currentResults.type === 'suggestions' && currentResults.tags.length > 0) {
-          const firstTag = currentResults.tags[0];
-          onTagAdd(firstTag.type, firstTag.value);
+        if (results.type === 'create_new') {
+          const createNewOptions = [
+            { type: 'category' as const, value: results.query },
+            ...tagTypesFromBackend
+              .filter(tt => tt.name.toLowerCase() !== 'categoria')
+              .map(tt => ({
+                type: tt.name as TagType,
+                value: results.query
+              }))
+          ];
+
+          const selectedOption = createNewOptions[selectedIndex] || createNewOptions[0];
+          if (selectedOption.type === 'category') {
+            onCategoryChange(selectedOption.value);
+          } else {
+            onTagToggle(selectedOption.type, selectedOption.value);
+          }
           setSearchQuery('');
-          setOpen(false);
+          setIsPanelOpen(false);
           return;
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        setOpen(false);
+        setIsPanelOpen(false);
+        setSearchQuery('');
       }
     };
 
-    // Adicionar listener no input também
-    const inputElement = inputRef.current;
-    if (inputElement) {
-      inputElement.addEventListener('keydown', handleKeyDown);
-    }
-    
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      if (inputElement) {
-        inputElement.removeEventListener('keydown', handleKeyDown);
-      }
     };
-  }, [open, searchQuery, selectedIndex, tags, categories, handleSelect, onTagAdd]);
+  }, [isPanelOpen, searchQuery, selectedIndex, tags, categories, handleSelect, onTagToggle, tagTypesFromBackend, onCategoryChange, results, flatSearchResults]);
 
-  const results = getSearchResults();
+  // Focar o input do painel quando abrir
+  useEffect(() => {
+    if (isPanelOpen && panelInputRef.current) {
+      setTimeout(() => {
+        panelInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isPanelOpen]);
 
+  // Scroll automático para o item selecionado
+  useEffect(() => {
+    if (isPanelOpen) {
+      const selectedElement = document.getElementById(`result-item-${selectedIndex}`);
+      if (selectedElement) {
+        selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+  }, [selectedIndex, isPanelOpen]);
+
+  // Estado para seções expandidas
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  // Estado para criação de nova tag
+  const [creationState, setCreationState] = useState<{ type: string; label: string } | null>(null);
+  const [newTagValue, setNewTagValue] = useState('');
+
+  const handleCreateTag = () => {
+    if (!newTagValue.trim() || !creationState) return;
+
+    const isCategory = creationState.type.toLowerCase() === 'categoria';
+
+    if (isCategory) {
+      onCategoryChange(newTagValue.trim());
+    } else {
+      onTagToggle(creationState.type as TagType, newTagValue.trim());
+    }
+
+    setCreationState(null);
+    setNewTagValue('');
+  };
+
+  const toggleSection = (type: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [type]: !prev[type]
+    }));
+  };
+
+  // Renderizar modo padrão ou painel
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={false}>
-      <PopoverTrigger asChild>
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="+ Adicionar Categoria ou Tag..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              if (!open) setOpen(true);
-            }}
-            onFocus={(e) => {
-              e.stopPropagation();
-              setOpen(true);
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!open) setOpen(true);
-            }}
-            onKeyDown={(e) => {
-              // Usar o valor atual do input para garantir que está sincronizado
-              const currentQuery = (e.target as HTMLInputElement).value;
-              
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                
-                // Criar uma função temporária para obter resultados com o query atual
-                const getCurrentResults = () => {
-                  const kv = parseKeyValue(currentQuery);
-                  
-                  if (kv) {
-                    const tagType = isValidTagType(kv.key);
-                    if (!tagType) {
-                      return {
-                        type: 'error' as const,
-                        message: `Tipo "${kv.key}" não encontrado. Tipos permitidos: Categoria, ${Object.values(tagTypeConfig).map(t => t.label).join(', ')}`,
-                      };
-                    }
+    <div ref={containerRef} className="relative w-full h-full flex flex-col">
+      {/* Input de Busca - Sempre visível */}
+      <div className="relative mb-3">
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder={isPanelOpen ? "Buscar ou criar tag (ex: categoria:transporte)..." : "+ Adicionar Categoria ou Tag..."}
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            if (!isPanelOpen) setIsPanelOpen(true);
+          }}
+          onFocus={() => {
+            setIsPanelOpen(true);
+          }}
+          onClick={() => {
+            setIsPanelOpen(true);
+          }}
+          disabled={disabled}
+          className="w-full rounded-lg bg-gray-50 dark:bg-gray-900 px-4 py-2.5 pr-10 text-sm border border-gray-200 dark:border-gray-700 focus:outline-none focus:border-purple-500 focus:bg-white dark:focus:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all"
+        />
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+      </div>
 
-                    // Se for categoria, tratar de forma especial
-                    if (tagType === 'category') {
-                      return {
-                        type: 'set_category' as const,
-                        value: kv.value,
-                      };
-                    }
+      {/* Seção 1: Itens Selecionados - Sempre visível se houver itens */}
+      {(() => {
+        const selectedItems: Array<{ type: string; value: string }> = [];
 
-                    const existingTag = tags.find(t => t.type === tagType && t.value.toLowerCase() === kv.value.toLowerCase());
-                    if (existingTag) {
-                      return {
-                        type: 'assign' as const,
-                        tagType,
-                        value: kv.value,
-                        existing: true,
-                      };
-                    }
+        if (category) {
+          selectedItems.push({ type: 'category', value: category });
+        }
 
-                    return {
-                      type: 'create' as const,
-                      tagType,
-                      value: kv.value,
-                    };
-                  }
+        tags.forEach(tag => {
+          selectedItems.push({ type: tag.type, value: tag.value });
+        });
 
-                  if (currentQuery.trim()) {
-                    const results: Array<{ type: TagType | 'category'; value: string; category: string }> = [];
-                    
-                    categories
-                      .filter(cat => cat.toLowerCase().includes(currentQuery.toLowerCase()))
-                      .forEach(cat => {
-                        results.push({ type: 'category' as const, value: cat, category: 'Categoria' });
-                      });
+        if (selectedItems.length === 0) return null;
 
-                    const foundTags = searchTags(currentQuery);
-                    foundTags.forEach(tag => {
-                      results.push({ type: tag.type, value: tag.value, category: tagTypeConfig[tag.type].label });
-                    });
-
-                    if (results.length === 0) {
-                      return {
-                        type: 'create_new' as const,
-                        query: currentQuery.trim(),
-                      };
-                    }
-
-                    return {
-                      type: 'search' as const,
-                      results: results.reduce((acc, item) => {
-                        if (!acc[item.category]) acc[item.category] = [];
-                        acc[item.category].push(item);
-                        return acc;
-                      }, {} as Record<string, Array<{ type: TagType | 'category'; value: string }>>),
-                    };
-                  }
-
-                  return {
-                    type: 'suggestions' as const,
-                    tags: getMostUsedTags(),
-                  };
-                };
-                
-                const currentResults = getCurrentResults();
-                
-                // Caso 1: Definir categoria
-                if (currentResults.type === 'set_category') {
-                  onCategoryChange(currentResults.value);
-                  setSearchQuery('');
-                  setOpen(false);
-                  return;
-                }
-                
-                // Caso 2: Padrão chave:valor (assign ou create)
-                if (currentResults.type === 'assign' || currentResults.type === 'create') {
-                  // Chamar diretamente para garantir que funciona
-                  onTagAdd(currentResults.tagType, currentResults.value);
-                  setSearchQuery('');
-                  setOpen(false);
-                  return;
-                }
-                
-                // Caso 3: Resultados de busca
-                if (currentResults.type === 'search') {
-                  const allItems = Object.values(currentResults.results).flat();
-                  const itemToSelect = allItems[selectedIndexRef.current] || allItems[0];
-                  if (itemToSelect) {
-                    handleSelect(currentResults, itemToSelect);
-                  }
-                  return;
-                }
-                
-                // Caso 4: Criar nova (quando não há resultados)
-                if (currentResults.type === 'create_new') {
-                  // Total de opções: 1 categoria + 4 tipos de tag = 5 opções
-                  const createNewOptions = [
-                    { type: 'category' as const, value: currentResults.query },
-                    ...Object.keys(tagTypeConfig).map(type => ({ 
-                      type: type as TagType, 
-                      value: currentResults.query 
-                    }))
-                  ];
-                  
-                  const selectedOption = createNewOptions[selectedIndexRef.current] || createNewOptions[0];
-                  
-                  if (selectedOption.type === 'category') {
-                    onCategoryChange(selectedOption.value);
-                  } else {
-                    onTagAdd(selectedOption.type, selectedOption.value);
-                  }
-                  setSearchQuery('');
-                  setOpen(false);
-                  return;
-                }
-                
-                // Caso 5: Sugestões - selecionar primeira sugestão
-                if (currentResults.type === 'suggestions' && currentResults.tags.length > 0) {
-                  const firstTag = currentResults.tags[0];
-                  onTagAdd(firstTag.type, firstTag.value);
-                  setSearchQuery('');
-                  setOpen(false);
-                  return;
-                }
-              } else if (e.key === 'Escape') {
-                e.preventDefault();
-                setOpen(false);
-              } else if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                const results = getSearchResults();
-                if (results.type === 'search') {
-                  const allItems = Object.values(results.results).flat();
-                  setSelectedIndex((prev) => Math.min(prev + 1, allItems.length - 1));
-                } else if (results.type === 'create_new') {
-                  // Total: 1 categoria + 4 tipos de tag = 5 opções (índices 0-4)
-                  setSelectedIndex((prev) => Math.min(prev + 1, 4));
-                } else if (results.type === 'suggestions') {
-                  setSelectedIndex((prev) => Math.min(prev + 1, results.tags.length - 1));
-                }
-              } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                setSelectedIndex((prev) => Math.max(prev - 1, 0));
-              }
-            }}
-            disabled={disabled}
-            className="w-full rounded-lg bg-gray-50 dark:bg-gray-900 px-4 py-2.5 pr-10 text-sm border border-gray-200 dark:border-gray-700 focus:outline-none focus:border-purple-500 focus:bg-white dark:focus:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-          />
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-        </div>
-      </PopoverTrigger>
-      <PopoverContent 
-        ref={popoverRef}
-        className="w-80 p-0" 
-        align="start"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onInteractOutside={(e) => {
-          // Não fechar se o clique foi no input ou dentro do popover
-          const target = e.target as HTMLElement;
-          if (inputRef.current?.contains(target) || popoverRef.current?.contains(target)) {
-            e.preventDefault();
-          }
-        }}
-        onEscapeKeyDown={(e) => {
-          // Permitir fechar com ESC, mas não fechar o popover automaticamente
-          // O handler de teclado já cuida disso
-        }}
-        onPointerDownOutside={(e) => {
-          // Não fechar se o clique foi no input
-          const target = e.target as HTMLElement;
-          if (inputRef.current?.contains(target)) {
-            e.preventDefault();
-          }
-        }}
-      >
-        <div className="max-h-[400px] overflow-y-auto">
-          {results.type === 'error' && (
-            <div className="p-4 text-sm text-red-600 dark:text-red-400">
-              {results.message}
+        return (
+          <div className="space-y-3 mb-4">
+            <div className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide flex items-center gap-1.5">
+              <Check className="h-3.5 w-3.5" />
+              Selecionados
             </div>
-          )}
 
-          {results.type === 'set_category' && (
-            <div className="p-2">
-              <button
-                type="button"
-                onClick={() => {
-                  onCategoryChange(results.value);
-                  setSearchQuery('');
-                  setOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span>🏷️</span>
-                  <span className="text-sm font-medium">
-                    Definir categoria como "{results.value}"
-                  </span>
+            {Object.entries(
+              selectedItems.reduce((acc, item) => {
+                const type = item.type;
+                if (!acc[type]) {
+                  acc[type] = [];
+                }
+                acc[type].push(item);
+                return acc;
+              }, {} as Record<string, typeof selectedItems>)
+            ).map(([type, items]) => {
+              const config = getTagTypeConfig(type);
+              return (
+                <div key={`selected-group-${type}`} className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                      {config.emoji} {config.label}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {items.map((item, idx) => {
+                      const isCategory = item.type === 'category';
+
+                      return (
+                        <button
+                          key={`selected-${item.type}-${item.value}-${idx}`}
+                          type="button"
+                          onClick={() => {
+                            if (isCategory) {
+                              onCategoryChange(item.value);
+                            } else {
+                              onTagToggle(item.type as TagType, item.value);
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700"
+                        >
+                          <span>{item.value}</span>
+                          <Check className="h-3 w-3" />
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </button>
-            </div>
-          )}
+              );
+            })}
+          </div>
+        );
+      })()}
 
-          {results.type === 'assign' && (
-            <div className="p-2">
-              <button
-                type="button"
-                onClick={() => handleSelect(results)}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium">
-                    Adicionar a tag "{results.value}" ao tipo "{tagTypeConfig[results.tagType].label}"
-                  </span>
+      <AnimatePresence mode="wait">
+        {/* Seção 2: Sugestões - Visível apenas se painel fechado E nada selecionado */}
+        {!isPanelOpen && (!category && tags.length === 0) && quickSuggestions.length > 0 && (
+          <motion.div
+            key="suggestions"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-3 overflow-hidden"
+          >
+            <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+              Sugestões
+            </div>
+
+            {Object.entries(
+              quickSuggestions.reduce((acc, item) => {
+                const type = item.type;
+                if (!acc[type]) {
+                  acc[type] = [];
+                }
+                acc[type].push(item);
+                return acc;
+              }, {} as Record<string, typeof quickSuggestions>)
+            ).map(([type, items]) => {
+              const config = getTagTypeConfig(type);
+              return (
+                <div key={`quick-group-${type}`} className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                      {config.emoji} {config.label}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {items.map((item, idx) => {
+                      const isCategory = item.type.toLowerCase() === 'categoria';
+
+                      return (
+                        <button
+                          key={`quick-${item.type}-${item.value}-${idx}`}
+                          type="button"
+                          onClick={() => {
+                            if (isCategory) {
+                              onCategoryChange(item.value);
+                            } else {
+                              onTagToggle(item.type as TagType, item.value);
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                        >
+                          <span>{item.value}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </button>
-            </div>
-          )}
+              );
+            })}
+          </motion.div>
+        )}
 
-          {results.type === 'create' && (
-            <div className="p-2">
-              <button
-                type="button"
-                onClick={() => handleSelect(results)}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Plus className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm font-medium">
-                    Criar e adicionar a tag "{results.value}" ao tipo "{tagTypeConfig[results.tagType].label}"
-                  </span>
+        {/* MODO PAINEL: Conteúdo das Tags */}
+        {isPanelOpen && (
+          <motion.div
+            key="panel-content"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-col min-h-0 mt-2"
+          >
+            {/* Header removido - agora controlado pelo componente pai */}
+
+            {/* Área de Conteúdo das Tags - Com scrollbar */}
+            <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
+              {results.type === 'error' && (
+                <div className="p-4 text-sm text-red-600 dark:text-red-400 rounded-lg bg-red-50 dark:bg-red-900/20">
+                  {results.message}
                 </div>
-              </button>
-            </div>
-          )}
+              )}
 
-          {results.type === 'suggestions' && (
-            <div className="p-3">
-              <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                Tags Mais Usadas
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {results.tags.length > 0 ? (
-                  results.tags.map((tag, idx) => {
-                    const config = tagTypeConfig[tag.type];
+              {results.type === 'set_category' && (
+                <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCategoryChange(results.value);
+                      setSearchQuery('');
+                      setIsPanelOpen(false);
+                    }}
+                    className="w-full text-left flex items-center gap-2 text-sm font-medium text-purple-700 dark:text-purple-300"
+                  >
+                    <span>🏷️</span>
+                    <span>Definir categoria como "{results.value}"</span>
+                  </button>
+                </div>
+              )}
+
+              {results.type === 'assign' && (
+                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(results)}
+                    className="w-full text-left flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-300"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>Adicionar a tag "{results.value}" ao tipo "{getTagTypeConfig(results.tagType).label}"</span>
+                  </button>
+                </div>
+              )}
+
+              {results.type === 'create' && (
+                <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(results)}
+                    className="w-full text-left flex items-center gap-2 text-sm font-medium text-purple-700 dark:text-purple-300"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Criar e adicionar a tag "{results.value}" ao tipo "{getTagTypeConfig(results.tagType).label}"</span>
+                  </button>
+                </div>
+              )}
+
+              {results.type === 'search' && (
+                <div className="space-y-1">
+                  {flatSearchResults.map((item, idx) => {
+                    const isFirstOfCategory = idx === 0 || item.category !== flatSearchResults[idx - 1].category;
+                    const isSelected = selectedIndex === idx;
+                    const isCategory = item.type === 'category';
+                    const config = isCategory
+                      ? { emoji: '🏷️', label: 'Categoria' }
+                      : getTagTypeConfig(item.type as string);
+
                     return (
-                      <button
-                        key={`${tag.type}-${tag.value}-${idx}`}
-                        type="button"
-                        onClick={() => {
-                          onTagAdd(tag.type, tag.value);
-                          setSearchQuery('');
-                          setOpen(false);
-                        }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                      >
-                        <span>{config.emoji}</span>
-                        <span>{tag.value}</span>
-                      </button>
+                      <Fragment key={`${item.type}-${item.value}-${idx}`}>
+                        {isFirstOfCategory && (
+                          <div className={cn(
+                            "text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide px-1",
+                            idx > 0 ? "mt-4 mb-2" : "mb-2"
+                          )}>
+                            {item.category}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          id={`result-item-${idx}`}
+                          onClick={() => {
+                            if (isCategory) {
+                              onCategoryChange(item.value);
+                            } else {
+                              onTagToggle(item.type as TagType, item.value);
+                            }
+                            setSearchQuery('');
+                            setIsPanelOpen(false);
+                          }}
+                          className={cn(
+                            "w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm",
+                            isSelected
+                              ? "bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700"
+                              : "hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent"
+                          )}
+                        >
+                          <span>{config.emoji}</span>
+                          <span className="font-medium">{item.value}</span>
+                        </button>
+                      </Fragment>
                     );
-                  })
-                ) : (
-                  <div className="text-sm text-gray-500 dark:text-gray-400 py-2">
-                    Nenhuma tag usada recentemente
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+                  })}
+                </div>
+              )}
 
-          {results.type === 'search' && (
-            <div className="p-3 space-y-3">
-              {Object.entries(results.results).map(([category, items]) => {
-                const categoryStartIndex = Object.entries(results.results)
-                  .slice(0, Object.keys(results.results).indexOf(category))
-                  .reduce((acc, [, items]) => acc + items.length, 0);
-                
-                return (
-                  <div key={category}>
-                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                      {category}
-                    </div>
-                    <div className="space-y-1">
-                      {items.map((item, idx) => {
-                        const globalIndex = categoryStartIndex + idx;
-                        const isSelected = selectedIndex === globalIndex;
-                        const isCategory = item.type === 'category';
-                        const config = isCategory
-                          ? { emoji: '🏷️', label: 'Categoria' }
-                          : tagTypeConfig[item.type as TagType];
-                        
-                        return (
-                          <button
-                            key={`${item.type}-${item.value}-${idx}`}
-                            type="button"
-                            onClick={() => {
-                              if (isCategory) {
-                                onCategoryChange(item.value);
-                              } else {
-                                onTagAdd(item.type as TagType, item.value);
-                              }
-                              setSearchQuery('');
-                              setOpen(false);
-                            }}
-                            className={cn(
-                              "w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2",
-                              isSelected && "bg-gray-100 dark:bg-gray-800"
-                            )}
-                          >
-                            <span>{config.emoji}</span>
-                            <span className="text-sm font-medium">{item.value}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+              {results.type === 'create_new' && (
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                    Criar Nova
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <button
+                    type="button"
+                    id="result-item-0"
+                    onClick={() => {
+                      onCategoryChange(results.query);
+                      setSearchQuery('');
+                      setIsPanelOpen(false);
+                    }}
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm",
+                      selectedIndex === 0
+                        ? "bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                    )}
+                  >
+                    <span>🏷️</span>
+                    <span className="font-medium">Criar "{results.query}" como Categoria</span>
+                  </button>
+                  {tagTypesFromBackend
+                    .filter(tt => tt.name.toLowerCase() !== 'categoria')
+                    .map((tagType, idx) => {
+                      const config = getTagTypeConfig(tagType.name);
+                      const optionIndex = idx + 1;
+                      const isSelected = selectedIndex === optionIndex;
+                      return (
+                        <button
+                          key={tagType.id}
+                          type="button"
+                          id={`result-item-${optionIndex}`}
+                          onClick={() => {
+                            onTagToggle(tagType.name as TagType, results.query);
+                            setSearchQuery('');
+                            setIsPanelOpen(false);
+                          }}
+                          className={cn(
+                            "w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm",
+                            isSelected
+                              ? "bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700"
+                              : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                          )}
+                        >
+                          <span>{config.emoji}</span>
+                          <span className="font-medium">Criar "{results.query}" como {config.label}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              )}
 
-          {results.type === 'create_new' && (
-            <div className="p-3">
-              <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                Criar Nova
-              </div>
-              <div className="space-y-2">
-                {/* Opção para criar como categoria (índice 0) */}
-                <button
-                  type="button"
-                  onClick={(e) => {
+              {/* Exibição completa de tags por tipo (quando não há busca) */}
+              {results.type === 'all_tags_by_type' && (
+                <div className="space-y-6">
+                  {tagTypesFromBackend
+                    .filter(tt => tagsByType[tt.name.toLowerCase()] && tagsByType[tt.name.toLowerCase()].length > 0)
+                    .map((tagType) => {
+                      const config = getTagTypeConfig(tagType.name);
+                      const typeTags = tagsByType[tagType.name.toLowerCase()] || [];
+                      const isExpanded = expandedSections[tagType.name] || false;
+                      const isCategoryType = tagType.name.toLowerCase() === 'categoria';
+                      const limit = isCategoryType ? 8 : 12;
+                      const visibleTags = isExpanded ? typeTags : typeTags.slice(0, limit);
+                      const hasMore = typeTags.length > limit;
+
+                      return (
+                        <div key={tagType.id} className="space-y-3 p-3 rounded-xl bg-gray-50/50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-800">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">{config.emoji}</span>
+                              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                {config.label}
+                              </h3>
+                              <span className="px-1.5 py-0.5 rounded-full bg-gray-200 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400">
+                                {typeTags.length}
+                              </span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setCreationState({
+                                  type: tagType.name,
+                                  label: config.label
+                                });
+                              }}
+                              className="h-7 px-2 text-xs hover:bg-white dark:hover:bg-gray-800"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Novo
+                            </Button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {visibleTags.map((tag, idx) => {
+                              const isCategory = tagType.name.toLowerCase() === 'categoria';
+                              const isSelected = isCategory
+                                ? category === tag.value
+                                : tags.some(t => t.type === tag.type && t.value === tag.value);
+
+                              return (
+                                <button
+                                  key={`${tag.type}-${tag.value}-${idx}`}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isCategory) {
+                                      onCategoryChange(tag.value);
+                                    } else {
+                                      onTagToggle(tag.type as TagType, tag.value);
+                                    }
+                                    // Não fechar o painel ao selecionar no modo de visualização completa
+                                    // setIsPanelOpen(false);
+                                  }}
+                                  className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border",
+                                    isSelected
+                                      ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700 shadow-sm"
+                                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-purple-200 dark:hover:border-purple-800 hover:bg-purple-50/50 dark:hover:bg-purple-900/10"
+                                  )}
+                                >
+                                  {isSelected && <Check className="h-3.5 w-3.5" />}
+                                  <span>{tag.value}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {hasMore && (
+                            <button
+                              type="button"
+                              onClick={() => toggleSection(tagType.name)}
+                              className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 mt-2"
+                            >
+                              {isExpanded ? "Ver menos" : `Ver mais (${typeTags.length - limit} restantes)...`}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dialog de Criação de Tag */}
+      <Dialog open={!!creationState} onOpenChange={(open) => !open && setCreationState(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Criar nova {creationState?.label}</DialogTitle>
+            <DialogDescription>
+              Adicione uma nova opção para {creationState?.label}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Input
+                id="name"
+                value={newTagValue}
+                onChange={(e) => setNewTagValue(e.target.value)}
+                className="col-span-4"
+                placeholder={`Nome da ${creationState?.label}...`}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
                     e.preventDefault();
-                    e.stopPropagation();
-                    onCategoryChange(results.query);
-                    setSearchQuery('');
-                    setOpen(false);
-                  }}
-                  className={cn(
-                    "w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2",
-                    selectedIndex === 0 
-                      ? "bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700" 
-                      : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                  )}
-                >
-                  <span>🏷️</span>
-                  <span className="text-sm font-medium">
-                    Criar "{results.query}" como Categoria
-                  </span>
-                </button>
-                {/* Opções para criar como tags (índices 1-4) */}
-                {Object.entries(tagTypeConfig).map(([type, config], idx) => {
-                  const tagType = type as TagType;
-                  const optionIndex = idx + 1; // +1 porque categoria é índice 0
-                  const isSelected = selectedIndex === optionIndex;
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => {
-                        onTagAdd(tagType, results.query);
-                        setSearchQuery('');
-                        setOpen(false);
-                      }}
-                      className={cn(
-                        "w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2",
-                        isSelected
-                          ? "bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700"
-                          : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                      )}
-                    >
-                      <span>{config.emoji}</span>
-                      <span className="text-sm font-medium">
-                        Criar "{results.query}" como {config.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                    handleCreateTag();
+                  }
+                }}
+              />
             </div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreationState(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateTag} disabled={!newTagValue.trim()}>
+              Criar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -800,7 +1073,7 @@ function CardManagementArea({
                 <FormItem>
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4 space-y-4">
                     <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Modalidade</h4>
-                    
+
                     <ToggleGroup
                       type="single"
                       value={field.value || ''}
@@ -919,7 +1192,7 @@ function CardCreateForm({
       className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-purple-200 dark:border-purple-800 p-5 space-y-4 h-full overflow-y-auto"
     >
       <h4 className="font-semibold text-base text-gray-900 dark:text-gray-100">Adicionar Novo Cartão</h4>
-      
+
       <div className="space-y-4">
         <div>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Nome do Cartão</label>
@@ -1029,7 +1302,7 @@ function InstallmentsField({ form, loading }: { form: ReturnType<typeof useForm<
           }
         }
       }, 300);
-      
+
       return () => clearTimeout(timeoutId);
     }
   }, [modality]);
@@ -1186,15 +1459,18 @@ export function NewTransactionSheet({
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
   const [valueDisplay, setValueDisplay] = useState<string>('');
   const valueInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Estados para tags e cartão
   const [tags, setTags] = useState<Array<{ type: TagType; value: string }>>([]);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [showCardCreateForm, setShowCardCreateForm] = useState(false);
-  
-  // Estados para categorias do backend
+
+  // Estados para categorias e tags do backend
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [allTagsFromBackend, setAllTagsFromBackend] = useState<Array<{ type: string; name: string }>>([]);
+  const [tagTypesFromBackend, setTagTypesFromBackend] = useState<Array<{ id: string; name: string; description: string | null; is_required: boolean; max_per_transaction: number | null }>>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [isClassificationPanelOpen, setIsClassificationPanelOpen] = useState(false);
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
@@ -1220,33 +1496,61 @@ export function NewTransactionSheet({
   const paymentMethods = type === 'income'
     ? ['PIX', 'Dinheiro', 'Transferência Bancária']
     : allPaymentMethods;
-  
-  // Buscar categorias quando a organização for selecionada
+
+  // Buscar tipos de tags do backend (uma vez, não depende da organização)
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadTagTypes = async () => {
+      try {
+        const response = await listTagTypes();
+        setTagTypesFromBackend(response.tag_types);
+      } catch (err) {
+        console.error('Erro ao buscar tipos de tags:', err);
+      }
+    };
+
+    loadTagTypes();
+  }, []);
+
+  // Buscar todas as tags quando a organização for selecionada
+  useEffect(() => {
+    const loadAllTags = async () => {
       if (!currentOrganizationId) {
         setAvailableCategories([]);
+        setAllTagsFromBackend([]);
         return;
       }
-      
+
       try {
         setLoadingCategories(true);
-        const response = await listTags(currentOrganizationId, 'categoria');
-        // Pegar apenas os nomes das tags e limitar a 5
-        const categoryNames = response.tags
+        // Buscar todas as tags (sem filtro de tipo)
+        const response = await listTags(currentOrganizationId);
+
+        // Separar categorias e outras tags
+        const allTags = response.tags
           .filter((tag: { is_active: boolean }) => tag.is_active)
-          .map((tag: { name: string }) => tag.name)
+          .map((tag: { name: string; tag_type: { name: string } }) => ({
+            type: tag.tag_type.name,
+            name: tag.name,
+          }));
+
+        setAllTagsFromBackend(allTags);
+
+        // Pegar apenas categorias para os chips (primeiras 5)
+        const categoryNames = allTags
+          .filter(tag => tag.type === 'categoria')
+          .map(tag => tag.name)
           .slice(0, 5);
         setAvailableCategories(categoryNames);
       } catch (err) {
-        console.error('Erro ao carregar categorias:', err);
+        console.error('Erro ao carregar tags:', err);
         setAvailableCategories([]);
+        setAllTagsFromBackend([]);
       } finally {
         setLoadingCategories(false);
       }
     };
-    
-    loadCategories();
+
+    loadAllTags();
   }, [currentOrganizationId]);
 
   // Focar no campo valor quando abrir
@@ -1406,14 +1710,22 @@ export function NewTransactionSheet({
   };
 
   // Funções para gerenciar tags
-  const handleAddTag = (tagType: TagType, value?: string) => {
-    // Verificar se já existe uma tag deste tipo
-    const existingTagIndex = tags.findIndex(t => t.type === tagType);
-    if (existingTagIndex === -1) {
-      setTags([...tags, { type: tagType, value: value || '' }]);
-    } else if (value) {
-      // Se já existe e foi passado um valor, atualizar
-      setTags(tags.map(t => t.type === tagType ? { ...t, value } : t));
+  const handleToggleTag = (tagType: TagType, value: string) => {
+    // Verificar se já existe uma tag deste tipo com este valor
+    const existingTagIndex = tags.findIndex(t => t.type === tagType && t.value === value);
+
+    if (existingTagIndex !== -1) {
+      // Se existe, remover (toggle off)
+      setTags(tags.filter((_, index) => index !== existingTagIndex));
+    } else {
+      // Se não existe, adicionar (toggle on)
+      // Verificar se já existe uma tag deste tipo (para substituir se for single-select, ou adicionar se for multi-select)
+      // Por enquanto, assumindo comportamento de adicionar/substituir baseado na existência
+      // Se quisermos permitir múltiplas tags do mesmo tipo, apenas adicionamos
+      // Se quisermos apenas uma tag por tipo, substituímos
+
+      // Comportamento atual: permite múltiplas tags do mesmo tipo se forem valores diferentes
+      setTags([...tags, { type: tagType, value }]);
     }
   };
 
@@ -1433,14 +1745,25 @@ export function NewTransactionSheet({
 
   const showCardManagement = paymentMethod === 'Cartão de Crédito' && type === 'expense';
   const organizationId = form.watch('organization_id');
-  
+
+  // Fechar painel de classificação automaticamente quando Área de Ferramentas Contextuais for acionada
+  // Regra da "Ferramenta Única": os estados são mutuamente exclusivos
+  // O painel deve fechar completamente antes que a ferramenta de cartão apareça
+  useEffect(() => {
+    if (showCardManagement) {
+      // Sempre fechar o painel quando a ferramenta de cartão for ativada
+      // Isso garante que apenas um estado esteja ativo por vez
+      setIsClassificationPanelOpen(false);
+    }
+  }, [showCardManagement]);
+
   // Função para gerar resumo da transação para o modal de confirmação
   const getTransactionSummary = () => {
     const values = form.getValues();
     const typeLabel = values.type === 'expense' ? 'Despesa' : 'Receita';
     const valueFormatted = values.value > 0 ? values.value.toFixed(2).replace('.', ',') : '0,00';
     const dateFormatted = values.date ? format(new Date(values.date), "dd/MM/yyyy 'às' HH:mm") : 'Não informado';
-    
+
     return {
       type: typeLabel,
       value: valueFormatted,
@@ -1468,110 +1791,326 @@ export function NewTransactionSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleSheetOpenChange}>
-        <SheetContent 
-          side="right" 
-          className="!w-[1000px] !max-w-[1000px] overflow-hidden p-8 [&>button]:hidden z-50 [&_div[data-radix-dialog-overlay]]:bg-black/40 bg-white dark:bg-gray-950"
+      <SheetContent
+        side="right"
+        className="!w-[1000px] !max-w-[1000px] overflow-hidden p-8 [&>button]:hidden z-50 [&_div[data-radix-dialog-overlay]]:bg-black/40 bg-white dark:bg-gray-950"
+      >
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="h-full relative"
         >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-            className="h-full relative"
-          >
-            <div className="flex flex-col h-full">
-              {/* Estado de Sucesso */}
-              <AnimatePresence>
-                {showSuccess && (
+          <div className="flex flex-col h-full">
+            {/* Estado de Sucesso */}
+            <AnimatePresence>
+              {showSuccess && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm flex items-center justify-center rounded-l-2xl"
+                >
                   <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 z-50 bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm flex items-center justify-center rounded-l-2xl"
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    className="text-center space-y-6 px-6"
                   >
                     <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.9, opacity: 0 }}
-                      className="text-center space-y-6 px-6"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.1, type: 'spring' }}
+                      className="mx-auto w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"
                     >
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.1, type: 'spring' }}
-                        className="mx-auto w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"
-                      >
-                        <Check className="h-10 w-10 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
-                      </motion.div>
-                      <div>
-                        <h3 className="text-2xl font-bold mb-2">Transação salva com sucesso!</h3>
-                        <p className="text-muted-foreground">Sua transação foi registrada.</p>
-                      </div>
-                      <div className="flex flex-col gap-3 pt-4">
-                        <Button
-                          type="button"
-                          onClick={handleCreateAnother}
-                          variant="primary"
-                          className="w-full"
-                        >
-                          Criar Nova Transação
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={handleClose}
-                          className="w-full"
-                        >
-                          Fechar
-                        </Button>
-                      </div>
+                      <Check className="h-10 w-10 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
                     </motion.div>
+                    <div>
+                      <h3 className="text-2xl font-bold mb-2">Transação salva com sucesso!</h3>
+                      <p className="text-muted-foreground">Sua transação foi registrada.</p>
+                    </div>
+                    <div className="flex flex-col gap-3 pt-4">
+                      <Button
+                        type="button"
+                        onClick={handleCreateAnother}
+                        variant="primary"
+                        className="w-full"
+                      >
+                        Criar Nova Transação
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleClose}
+                        className="w-full"
+                      >
+                        Fechar
+                      </Button>
+                    </div>
                   </motion.div>
-                )}
-              </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col overflow-hidden">
-                  {/* Header */}
-                  <div className="shrink-0 mb-6">
-                    <SheetHeader>
-                      <SheetTitle className="text-2xl font-bold">
-                        Nova Transação
-                      </SheetTitle>
-                    </SheetHeader>
-                    
-                    {error && (
-                      <Alert variant="destructive" className="mt-4">
-                        <AlertDescription>{typeof error === 'string' ? error : String(error)}</AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="shrink-0 mb-6">
+                  <SheetHeader>
+                    <SheetTitle className="text-2xl font-bold">
+                      Nova Transação
+                    </SheetTitle>
+                  </SheetHeader>
 
-                  {/* Layout de Duas Colunas com CSS Grid - 50/50 */}
-                  <div className="flex-1 grid grid-cols-2 gap-8 min-h-0 overflow-hidden pr-1">
-                    {/* Coluna Esquerda: O Palco (Fluxo Principal) */}
-                    <div className="flex flex-col min-h-0 overflow-hidden">
-                      <div className="flex-1 space-y-3 min-h-0 pr-1 overflow-y-auto pl-2">
+                  {error && (
+                    <Alert variant="destructive" className="mt-4">
+                      <AlertDescription>{typeof error === 'string' ? error : String(error)}</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
 
-                        {/* Tipo de Transação - ToggleGroup */}
-                        <FormField
-                          control={form.control}
-                          name="type"
-                          render={({ field }) => (
+                {/* Layout de Duas Colunas com CSS Grid - 50/50 */}
+                <div className="flex-1 grid grid-cols-2 gap-8 min-h-0 overflow-hidden pr-1">
+                  {/* Coluna Esquerda: O Palco (Fluxo Principal) */}
+                  <div className="flex flex-col min-h-0 overflow-hidden">
+                    <div className="flex-1 space-y-3 min-h-0 pr-1 overflow-y-auto pl-2">
+
+                      {/* Tipo de Transação - ToggleGroup */}
+                      <FormField
+                        control={form.control}
+                        name="type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase">
+                              Tipo
+                            </FormLabel>
+                            <FormControl>
+                              <ToggleGroup
+                                type="single"
+                                value={field.value}
+                                onValueChange={(value) => {
+                                  if (value) {
+                                    field.onChange(value as 'income' | 'expense');
+                                    const validForBothTypes = ['PIX', 'Dinheiro', 'Transferência Bancária'];
+                                    const currentMethod = form.getValues('payment_method');
+                                    if (currentMethod && !validForBothTypes.includes(currentMethod)) {
+                                      form.setValue('payment_method', '');
+                                      form.setValue('card_last4', null);
+                                      form.setValue('modality', null);
+                                      form.setValue('installments_count', null);
+                                      setSelectedCardId(null);
+                                    }
+                                  }
+                                }}
+                                className="w-full"
+                              >
+                                <ToggleGroupItem
+                                  value="expense"
+                                  aria-label="Despesa"
+                                  className={cn(
+                                    'flex-1 h-12 rounded-lg font-semibold text-sm',
+                                    'data-[state=on]:bg-rose-500 data-[state=on]:text-white',
+                                    'data-[state=off]:bg-transparent data-[state=off]:text-rose-500 data-[state=off]:border-2 data-[state=off]:border-rose-200'
+                                  )}
+                                >
+                                  <TrendingDown className="h-4 w-4" />
+                                  Despesa
+                                </ToggleGroupItem>
+                                <ToggleGroupItem
+                                  value="income"
+                                  aria-label="Receita"
+                                  className={cn(
+                                    'flex-1 h-12 rounded-lg font-semibold text-sm',
+                                    'data-[state=on]:bg-emerald-500 data-[state=on]:text-white',
+                                    'data-[state=off]:bg-transparent data-[state=off]:text-emerald-500 data-[state=off]:border-2 data-[state=off]:border-emerald-200'
+                                  )}
+                                >
+                                  <TrendingUp className="h-4 w-4" />
+                                  Receita
+                                </ToggleGroupItem>
+                              </ToggleGroup>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Valor - Campo Herói */}
+                      <FormField
+                        control={form.control}
+                        name="value"
+                        render={({ field }) => {
+                          // Observar valores para calcular legenda de parcelas
+                          const paymentMethod = useWatch({ control: form.control, name: 'payment_method' });
+                          const modality = useWatch({ control: form.control, name: 'modality' });
+                          const installmentsCount = useWatch({ control: form.control, name: 'installments_count' });
+                          const transactionValue = field.value || 0;
+
+                          // Calcular se deve mostrar a legenda
+                          const showInstallmentLegend =
+                            paymentMethod === 'Cartão de Crédito' &&
+                            modality === 'installment' &&
+                            installmentsCount &&
+                            installmentsCount > 0 &&
+                            transactionValue > 0;
+
+                          const installmentValue = showInstallmentLegend
+                            ? transactionValue / installmentsCount
+                            : 0;
+
+                          return (
                             <FormItem>
                               <FormLabel className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase">
-                                Tipo
+                                Valor (R$)
                               </FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <input
+                                    ref={valueInputRef}
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="0,00"
+                                    className={cn(
+                                      "flex w-full rounded-lg bg-gray-50 dark:bg-gray-900 text-3xl font-bold text-right border-0 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white dark:focus:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-gray-400 dark:placeholder:text-gray-500 pr-4 pl-14",
+                                      showInstallmentLegend ? "pb-8 pt-3" : "py-3"
+                                    )}
+                                    style={{ fontSize: '2rem', lineHeight: '1.2' }}
+                                    value={valueDisplay}
+                                    onChange={(e) => {
+                                      // Remove tudo exceto números e vírgula
+                                      let inputValue = e.target.value.replace(/[^\d,]/g, '');
+
+                                      // Permite apenas uma vírgula
+                                      const commaCount = (inputValue.match(/,/g) || []).length;
+                                      if (commaCount > 1) {
+                                        inputValue = inputValue.replace(/,/g, '').replace(/(\d+)/, '$1,');
+                                      }
+
+                                      // Limita a 2 casas decimais após a vírgula
+                                      if (inputValue.includes(',')) {
+                                        const parts = inputValue.split(',');
+                                        if (parts[1] && parts[1].length > 2) {
+                                          inputValue = parts[0] + ',' + parts[1].substring(0, 2);
+                                        }
+                                      }
+
+                                      setValueDisplay(inputValue);
+
+                                      // Converte para número e atualiza o form
+                                      const numericValue = inputValue.replace(',', '.');
+                                      const parsed = parseFloat(numericValue) || 0;
+                                      field.onChange(parsed);
+                                    }}
+                                    onFocus={(e) => {
+                                      // Se o valor for 0, limpa o display para permitir digitação
+                                      if (field.value === 0) {
+                                        setValueDisplay('');
+                                        e.target.select();
+                                      } else {
+                                        // Mostra o valor formatado sem vírgula fixa para edição
+                                        setValueDisplay(field.value.toString().replace('.', ','));
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      // Ao perder foco, formata com 2 casas decimais
+                                      if (field.value > 0) {
+                                        setValueDisplay(field.value.toFixed(2).replace('.', ','));
+                                      } else {
+                                        setValueDisplay('');
+                                      }
+                                      field.onBlur();
+                                    }}
+                                    disabled={loading}
+                                  />
+                                  <span
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground pointer-events-none font-bold"
+                                    style={{ fontSize: '2rem', lineHeight: '1.2' }}
+                                  >
+                                    R$
+                                  </span>
+
+                                  {/* Legenda de parcelas dentro do input, abaixo do valor */}
+                                  {showInstallmentLegend && (
+                                    <span
+                                      className="absolute right-4 bottom-2 text-xs font-medium text-gray-500 dark:text-gray-500 pointer-events-none"
+                                    >
+                                      em {installmentsCount}x de R$ {installmentValue.toFixed(2).replace('.', ',')}
+                                    </span>
+                                  )}
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
+
+                      {/* Organização - Oculto por padrão */}
+                      <FormField
+                        control={form.control}
+                        name="organization_id"
+                        render={({ field }) => (
+                          <FormItem className="hidden">
+                            <FormControl>
+                              <SearchableSelect
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                options={organizations.map((org) => ({
+                                  value: org.id,
+                                  label: org.name,
+                                }))}
+                                placeholder="Selecione uma organização"
+                                disabled={loading}
+                                searchPlaceholder="Buscar organização..."
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Descrição */}
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase">
+                              O que foi?
+                            </FormLabel>
+                            <FormControl>
+                              <input
+                                type="text"
+                                placeholder="Ex: Almoço no restaurante"
+                                {...field}
+                                disabled={loading}
+                                className="flex w-full rounded-lg bg-gray-50 dark:bg-gray-900 px-4 py-3 text-base border-0 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white dark:focus:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                                onBlur={field.onBlur}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Seção de Pagamento */}
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase">
+                          Pagamento
+                        </h3>
+
+                        <FormField
+                          control={form.control}
+                          name="payment_method"
+                          render={({ field }) => (
+                            <FormItem>
                               <FormControl>
                                 <ToggleGroup
                                   type="single"
                                   value={field.value}
                                   onValueChange={(value) => {
                                     if (value) {
-                                      field.onChange(value as 'income' | 'expense');
-                                      const validForBothTypes = ['PIX', 'Dinheiro', 'Transferência Bancária'];
-                                      const currentMethod = form.getValues('payment_method');
-                                      if (currentMethod && !validForBothTypes.includes(currentMethod)) {
-                                        form.setValue('payment_method', '');
+                                      field.onChange(value);
+                                      if (value !== 'Cartão de Crédito') {
                                         form.setValue('card_last4', null);
                                         form.setValue('modality', null);
                                         form.setValue('installments_count', null);
@@ -1579,462 +2118,187 @@ export function NewTransactionSheet({
                                       }
                                     }
                                   }}
-                                  className="w-full"
+                                  className="flex flex-wrap gap-2"
                                 >
-                                  <ToggleGroupItem
-                                    value="expense"
-                                    aria-label="Despesa"
-                                    className={cn(
-                                      'flex-1 h-12 rounded-lg font-semibold text-sm',
-                                      'data-[state=on]:bg-rose-500 data-[state=on]:text-white',
-                                      'data-[state=off]:bg-transparent data-[state=off]:text-rose-500 data-[state=off]:border-2 data-[state=off]:border-rose-200'
-                                    )}
-                                  >
-                                    <TrendingDown className="h-4 w-4" />
-                                    Despesa
-                                  </ToggleGroupItem>
-                                  <ToggleGroupItem
-                                    value="income"
-                                    aria-label="Receita"
-                                    className={cn(
-                                      'flex-1 h-12 rounded-lg font-semibold text-sm',
-                                      'data-[state=on]:bg-emerald-500 data-[state=on]:text-white',
-                                      'data-[state=off]:bg-transparent data-[state=off]:text-emerald-500 data-[state=off]:border-2 data-[state=off]:border-emerald-200'
-                                    )}
-                                  >
-                                    <TrendingUp className="h-4 w-4" />
-                                    Receita
-                                  </ToggleGroupItem>
+                                  {commonPaymentMethods
+                                    .filter(method => {
+                                      // Para Receita, mostrar apenas PIX, Dinheiro e Transferência Bancária
+                                      if (type === 'income') {
+                                        return ['PIX', 'Dinheiro', 'Transferência Bancária'].includes(method.value);
+                                      }
+                                      // Para Despesa, mostrar todos os métodos exceto Transferência Bancária (que só aparece para Receita)
+                                      return method.value !== 'Transferência Bancária';
+                                    })
+                                    .map((method) => {
+                                      const Icon = method.icon;
+                                      return (
+                                        <ToggleGroupItem
+                                          key={method.value}
+                                          value={method.value}
+                                          aria-label={method.label}
+                                          disabled={loading}
+                                          className={cn(
+                                            'flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition-all duration-200',
+                                            'shadow-sm',
+                                            // Estado ativo - gradientes vibrantes por método
+                                            method.value === 'PIX' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-purple-500 data-[state=on]:to-pink-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-purple-500/30',
+                                            method.value === 'Dinheiro' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-emerald-500 data-[state=on]:to-teal-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-emerald-500/30',
+                                            method.value === 'Cartão de Crédito' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-blue-500 data-[state=on]:to-cyan-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-blue-500/30',
+                                            method.value === 'Cartão de Débito' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-indigo-500 data-[state=on]:to-purple-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-indigo-500/30',
+                                            method.value === 'Boleto' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-orange-500 data-[state=on]:to-red-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-orange-500/30',
+                                            method.value === 'Transferência Bancária' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-slate-500 data-[state=on]:to-gray-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-slate-500/30',
+                                            // Estado inativo - fundo branco com borda sutil
+                                            'data-[state=off]:bg-white dark:data-[state=off]:bg-gray-800',
+                                            'data-[state=off]:text-gray-700 dark:data-[state=off]:text-gray-300',
+                                            'data-[state=off]:border data-[state=off]:border-gray-200 dark:data-[state=off]:border-gray-700',
+                                            'data-[state=off]:hover:border-purple-300 dark:data-[state=off]:hover:border-purple-600',
+                                            'data-[state=off]:hover:bg-gray-50 dark:data-[state=off]:hover:bg-gray-700',
+                                            'data-[state=off]:hover:shadow-md'
+                                          )}
+                                        >
+                                          <Icon className="h-4 w-4" />
+                                          {method.label}
+                                        </ToggleGroupItem>
+                                      );
+                                    })}
                                 </ToggleGroup>
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-
-                        {/* Valor - Campo Herói */}
-                        <FormField
-                          control={form.control}
-                          name="value"
-                          render={({ field }) => {
-                            // Observar valores para calcular legenda de parcelas
-                            const paymentMethod = useWatch({ control: form.control, name: 'payment_method' });
-                            const modality = useWatch({ control: form.control, name: 'modality' });
-                            const installmentsCount = useWatch({ control: form.control, name: 'installments_count' });
-                            const transactionValue = field.value || 0;
-                            
-                            // Calcular se deve mostrar a legenda
-                            const showInstallmentLegend = 
-                              paymentMethod === 'Cartão de Crédito' && 
-                              modality === 'installment' && 
-                              installmentsCount && 
-                              installmentsCount > 0 && 
-                              transactionValue > 0;
-                            
-                            const installmentValue = showInstallmentLegend 
-                              ? transactionValue / installmentsCount 
-                              : 0;
-                            
-                            return (
-                              <FormItem>
-                                <FormLabel className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase">
-                                  Valor (R$)
-                                </FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <input
-                                      ref={valueInputRef}
-                                      type="text"
-                                      inputMode="decimal"
-                                      placeholder="0,00"
-                                      className={cn(
-                                        "flex w-full rounded-lg bg-gray-50 dark:bg-gray-900 text-3xl font-bold text-right border-0 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white dark:focus:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-gray-400 dark:placeholder:text-gray-500 pr-4 pl-14",
-                                        showInstallmentLegend ? "pb-8 pt-3" : "py-3"
-                                      )}
-                                      style={{ fontSize: '2rem', lineHeight: '1.2' }}
-                                      value={valueDisplay}
-                                      onChange={(e) => {
-                                        // Remove tudo exceto números e vírgula
-                                        let inputValue = e.target.value.replace(/[^\d,]/g, '');
-                                        
-                                        // Permite apenas uma vírgula
-                                        const commaCount = (inputValue.match(/,/g) || []).length;
-                                        if (commaCount > 1) {
-                                          inputValue = inputValue.replace(/,/g, '').replace(/(\d+)/, '$1,');
-                                        }
-                                        
-                                        // Limita a 2 casas decimais após a vírgula
-                                        if (inputValue.includes(',')) {
-                                          const parts = inputValue.split(',');
-                                          if (parts[1] && parts[1].length > 2) {
-                                            inputValue = parts[0] + ',' + parts[1].substring(0, 2);
-                                          }
-                                        }
-                                        
-                                        setValueDisplay(inputValue);
-                                        
-                                        // Converte para número e atualiza o form
-                                        const numericValue = inputValue.replace(',', '.');
-                                        const parsed = parseFloat(numericValue) || 0;
-                                        field.onChange(parsed);
-                                      }}
-                                      onFocus={(e) => {
-                                        // Se o valor for 0, limpa o display para permitir digitação
-                                        if (field.value === 0) {
-                                          setValueDisplay('');
-                                          e.target.select();
-                                        } else {
-                                          // Mostra o valor formatado sem vírgula fixa para edição
-                                          setValueDisplay(field.value.toString().replace('.', ','));
-                                        }
-                                      }}
-                                      onBlur={(e) => {
-                                        // Ao perder foco, formata com 2 casas decimais
-                                        if (field.value > 0) {
-                                          setValueDisplay(field.value.toFixed(2).replace('.', ','));
-                                        } else {
-                                          setValueDisplay('');
-                                        }
-                                        field.onBlur();
-                                      }}
-                                      disabled={loading}
-                                    />
-                                    <span 
-                                      className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground pointer-events-none font-bold"
-                                      style={{ fontSize: '2rem', lineHeight: '1.2' }}
-                                    >
-                                      R$
-                                    </span>
-                                    
-                                    {/* Legenda de parcelas dentro do input, abaixo do valor */}
-                                    {showInstallmentLegend && (
-                                      <span 
-                                        className="absolute right-4 bottom-2 text-xs font-medium text-gray-500 dark:text-gray-500 pointer-events-none"
-                                      >
-                                        em {installmentsCount}x de R$ {installmentValue.toFixed(2).replace('.', ',')}
-                                      </span>
-                                    )}
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            );
-                          }}
-                        />
-
-                        {/* Organização - Oculto por padrão */}
-                        <FormField
-                          control={form.control}
-                          name="organization_id"
-                          render={({ field }) => (
-                            <FormItem className="hidden">
-                              <FormControl>
-                                <SearchableSelect
-                                  value={field.value}
-                                  onValueChange={field.onChange}
-                                  options={organizations.map((org) => ({
-                                    value: org.id,
-                                    label: org.name,
-                                  }))}
-                                  placeholder="Selecione uma organização"
-                                  disabled={loading}
-                                  searchPlaceholder="Buscar organização..."
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-
-                        {/* Descrição */}
-                        <FormField
-                          control={form.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase">
-                                O que foi?
-                              </FormLabel>
-                              <FormControl>
-                                <input
-                                  type="text"
-                                  placeholder="Ex: Almoço no restaurante"
-                                  {...field}
-                                  disabled={loading}
-                                  className="flex w-full rounded-lg bg-gray-50 dark:bg-gray-900 px-4 py-3 text-base border-0 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white dark:focus:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                                  onBlur={field.onBlur}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        {/* Seção de Pagamento */}
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase">
-                            Pagamento
-                          </h3>
-
-                          <FormField
-                            control={form.control}
-                            name="payment_method"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <ToggleGroup
-                                    type="single"
-                                    value={field.value}
-                                    onValueChange={(value) => {
-                                      if (value) {
-                                        field.onChange(value);
-                                        if (value !== 'Cartão de Crédito') {
-                                          form.setValue('card_last4', null);
-                                          form.setValue('modality', null);
-                                          form.setValue('installments_count', null);
-                                          setSelectedCardId(null);
-                                        }
-                                      }
-                                    }}
-                                    className="flex flex-wrap gap-2"
-                                  >
-                                    {commonPaymentMethods
-                                      .filter(method => {
-                                        // Para Receita, mostrar apenas PIX, Dinheiro e Transferência Bancária
-                                        if (type === 'income') {
-                                          return ['PIX', 'Dinheiro', 'Transferência Bancária'].includes(method.value);
-                                        }
-                                        // Para Despesa, mostrar todos os métodos exceto Transferência Bancária (que só aparece para Receita)
-                                        return method.value !== 'Transferência Bancária';
-                                      })
-                                      .map((method) => {
-                                        const Icon = method.icon;
-                                        return (
-                                          <ToggleGroupItem
-                                            key={method.value}
-                                            value={method.value}
-                                            aria-label={method.label}
-                                            disabled={loading}
-                                            className={cn(
-                                              'flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition-all duration-200',
-                                              'shadow-sm',
-                                              // Estado ativo - gradientes vibrantes por método
-                                              method.value === 'PIX' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-purple-500 data-[state=on]:to-pink-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-purple-500/30',
-                                              method.value === 'Dinheiro' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-emerald-500 data-[state=on]:to-teal-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-emerald-500/30',
-                                              method.value === 'Cartão de Crédito' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-blue-500 data-[state=on]:to-cyan-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-blue-500/30',
-                                              method.value === 'Cartão de Débito' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-indigo-500 data-[state=on]:to-purple-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-indigo-500/30',
-                                              method.value === 'Boleto' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-orange-500 data-[state=on]:to-red-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-orange-500/30',
-                                              method.value === 'Transferência Bancária' && 'data-[state=on]:bg-gradient-to-r data-[state=on]:from-slate-500 data-[state=on]:to-gray-500 data-[state=on]:text-white data-[state=on]:shadow-lg data-[state=on]:shadow-slate-500/30',
-                                              // Estado inativo - fundo branco com borda sutil
-                                              'data-[state=off]:bg-white dark:data-[state=off]:bg-gray-800',
-                                              'data-[state=off]:text-gray-700 dark:data-[state=off]:text-gray-300',
-                                              'data-[state=off]:border data-[state=off]:border-gray-200 dark:data-[state=off]:border-gray-700',
-                                              'data-[state=off]:hover:border-purple-300 dark:data-[state=off]:hover:border-purple-600',
-                                              'data-[state=off]:hover:bg-gray-50 dark:data-[state=off]:hover:bg-gray-700',
-                                              'data-[state=off]:hover:shadow-md'
-                                            )}
-                                          >
-                                            <Icon className="h-4 w-4" />
-                                            {method.label}
-                                          </ToggleGroupItem>
-                                        );
-                                      })}
-                                  </ToggleGroup>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <FormField
-                          control={form.control}
-                          name="date"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase">
-                                Data e Hora
-                              </FormLabel>
-                              <FormControl>
-                                <DateTimeInput
-                                  value={field.value}
-                                  onChange={field.onChange}
-                                  disabled={loading}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
                       </div>
 
-                      {/* Rodapé Fixo da Coluna Esquerda */}
-                      <div className="shrink-0 border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
-                        <div className="flex flex-col gap-2">
-                          <Button
-                            type="button"
-                            onClick={handleSaveClick}
-                            disabled={loading}
-                            variant="primary"
-                            className="w-full h-11"
-                          >
-                            {getSaveButtonText()}
-                          </Button>
-                          <Button
-                            type="button"
-                            disabled={loading}
-                            onClick={() => {
-                              form.trigger().then((isValid) => {
-                                if (isValid) {
-                                  setSaveAndCreateAnother(true);
-                                  setShowConfirmationDialog(true);
-                                }
-                              });
-                            }}
-                            variant="secondary"
-                            className="w-full h-11"
-                          >
-                            Salvar e criar outra
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => onOpenChange(false)}
-                            disabled={loading}
-                            className="w-full h-10"
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      </div>
+                      <FormField
+                        control={form.control}
+                        name="date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase">
+                              Data e Hora
+                            </FormLabel>
+                            <FormControl>
+                              <DateTimeInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                disabled={loading}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
 
-                    {/* Coluna Direita: Os Bastidores (50% do espaço) */}
-                    <div className="flex flex-col min-h-0">
-                      {/* Zona 1: Área de Classificação "Viva" (Com Layout Inteligente e Scroll Contido) */}
-                      <div className="shrink-0 space-y-3 pb-4 border-b border-slate-200 dark:border-slate-700 max-h-[280px] overflow-y-auto pr-2">
+                    {/* Rodapé Fixo da Coluna Esquerda */}
+                    <div className="shrink-0 border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          type="button"
+                          onClick={handleSaveClick}
+                          disabled={loading}
+                          variant="primary"
+                          className="w-full h-11"
+                        >
+                          {getSaveButtonText()}
+                        </Button>
+                        <Button
+                          type="button"
+                          disabled={loading}
+                          onClick={() => {
+                            form.trigger().then((isValid) => {
+                              if (isValid) {
+                                setSaveAndCreateAnother(true);
+                                setShowConfirmationDialog(true);
+                              }
+                            });
+                          }}
+                          variant="secondary"
+                          className="w-full h-11"
+                        >
+                          Salvar e criar outra
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => onOpenChange(false)}
+                          disabled={loading}
+                          className="w-full h-10"
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Coluna Direita: Os Bastidores (50% do espaço) */}
+                  <div className="flex flex-col min-h-0">
+                    {/* Zona 1: Área de Classificação "Viva" (Com Layout Inteligente e Scroll Contido) */}
+                    <div className={cn(
+                      "flex flex-col min-h-0 space-y-3 pr-2",
+                      isClassificationPanelOpen
+                        ? "flex-1 h-full"
+                        : "shrink-0 pb-4 border-b border-slate-200 dark:border-slate-700 max-h-[280px] overflow-y-auto"
+                    )}>
+                      <div className="flex items-center justify-between mb-2">
                         <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase">
                           Classificação
                         </h3>
-
-                        {/* Categorias Sugeridas - Chips clicáveis */}
-                        {currentOrganizationId && (
-                          <div className="space-y-2">
-                            {loadingCategories ? (
-                              <div className="flex flex-wrap gap-2">
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                  <div
-                                    key={i}
-                                    className="h-7 w-20 animate-pulse rounded-md bg-gray-200 dark:bg-gray-700"
-                                  />
-                                ))}
-                              </div>
-                            ) : availableCategories.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {availableCategories.map((categoryName) => (
-                                  <button
-                                    key={categoryName}
-                                    type="button"
-                                    onClick={() => {
-                                      form.setValue('category', categoryName);
-                                    }}
-                                    className={cn(
-                                      "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors",
-                                      form.watch('category') === categoryName
-                                        ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-                                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
-                                    )}
-                                  >
-                                    <ShoppingBag className="h-3.5 w-3.5" />
-                                    {categoryName}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : null}
-                          </div>
+                        {isClassificationPanelOpen && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsClassificationPanelOpen(false)}
+                            className="h-7 px-2 text-xs"
+                          >
+                            Concluir
+                          </Button>
                         )}
-
-                        {/* Prompt de Classificação Unificado */}
-                        <FormField
-                          control={form.control}
-                          name="category"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <ClassificationPrompt
-                                  category={field.value || null}
-                                  onCategoryChange={field.onChange}
-                                  categories={categories}
-                                  tags={tags}
-                                  onTagAdd={handleAddTag}
-                                  onTagRemove={handleRemoveTag}
-                                  onTagValueChange={handleTagValueChange}
-                                  disabled={loading}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        {/* Área de Tags Adicionadas - Chips com flex-wrap */}
-                        <div className="space-y-2">
-                          {/* Categoria selecionada */}
-                          {form.watch('category') && (
-                            <div className="flex flex-wrap gap-2">
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-medium border border-purple-200 dark:border-purple-800">
-                                <ShoppingBag className="h-3.5 w-3.5" />
-                                {form.watch('category')}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Tags adicionadas */}
-                          {tags.filter(t => t.value).length > 0 && (
-                            <motion.div
-                              className="flex flex-wrap gap-2"
-                              variants={{
-                                hidden: { opacity: 0 },
-                                show: {
-                                  opacity: 1,
-                                  transition: {
-                                    staggerChildren: 0.1,
-                                  },
-                                },
-                              }}
-                              initial="hidden"
-                              animate="show"
-                            >
-                              {tags.filter(t => t.value).map((tag) => {
-                                const config = tagTypeConfig[tag.type];
-                                return (
-                                  <motion.div
-                                    key={tag.type}
-                                    variants={{
-                                      hidden: { opacity: 0, scale: 0.8 },
-                                      show: { opacity: 1, scale: 1 },
-                                    }}
-                                  >
-                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-medium border border-gray-200 dark:border-gray-700">
-                                      <span>{config.emoji}</span>
-                                      <span>{tag.value}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleRemoveTag(tag.type)}
-                                        disabled={loading}
-                                        className="ml-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </button>
-                                    </div>
-                                  </motion.div>
-                                );
-                              })}
-                            </motion.div>
-                          )}
-                        </div>
                       </div>
 
-                      {/* Zona 2: Área de Conteúdo Dinâmico (Base - "O Slot de Ferramentas") */}
+                      {/* Prompt de Classificação Unificado */}
+                      <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                          <FormItem className={cn(isClassificationPanelOpen && "flex-1 flex flex-col min-h-0")}>
+                            <FormMessage className="mb-2" />
+                            <FormControl>
+                              <div className={cn(isClassificationPanelOpen && "flex-1 flex flex-col min-h-0")}>
+                                <ClassificationPrompt
+                                  category={field.value || null}
+                                  onCategoryChange={(value) => {
+                                    // Toggle category: se clicar na mesma, remove
+                                    if (field.value === value) {
+                                      field.onChange('');
+                                    } else {
+                                      field.onChange(value);
+                                    }
+                                  }}
+                                  categories={categories}
+                                  tags={tags}
+                                  onTagToggle={handleToggleTag}
+                                  onTagValueChange={handleTagValueChange}
+                                  disabled={loading}
+                                  allTagsFromBackend={allTagsFromBackend}
+                                  tagTypesFromBackend={tagTypesFromBackend}
+                                  onPanelStateChange={setIsClassificationPanelOpen}
+                                  isOpen={isClassificationPanelOpen}
+                                />
+                              </div>
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Área de Tags Adicionadas removida para evitar redundância */}
+                      {/* As tags selecionadas agora são visualizadas diretamente no ClassificationPrompt */}
+                    </div>
+
+                    {/* Zona 2: Área de Conteúdo Dinâmico (Base - "O Slot de Ferramentas") */}
+                    {/* Regra da "Ferramenta Única": só renderiza quando o painel de classificação estiver fechado */}
+                    {!isClassificationPanelOpen && (
                       <div className="flex-1 min-h-0 overflow-hidden mt-4">
                         <AnimatePresence mode="wait">
                           {showCardManagement && !showCardCreateForm && organizationId && (
@@ -2055,25 +2319,25 @@ export function NewTransactionSheet({
                                   Selecione um cartão ou adicione um novo para configurar a modalidade de pagamento
                                 </p>
                               </div>
-                              
+
                               {/* Cena 1: Gerenciamento de Cartão */}
                               <div className="flex-1 min-h-0 overflow-hidden">
                                 <CardManagementArea
-                                organizationId={organizationId}
-                                selectedCardId={selectedCardId}
-                                onCardSelect={(cardId, card) => {
-                                  setSelectedCardId(cardId);
-                                  // Preencher card_last4 quando um cartão é selecionado
-                                  if (card && card.last4) {
-                                    form.setValue('card_last4', card.last4);
-                                  } else if (!cardId) {
-                                    form.setValue('card_last4', null);
-                                  }
-                                }}
-                                onShowCreateForm={() => setShowCardCreateForm(true)}
-                                form={form}
-                                loading={loading}
-                              />
+                                  organizationId={organizationId}
+                                  selectedCardId={selectedCardId}
+                                  onCardSelect={(cardId, card) => {
+                                    setSelectedCardId(cardId);
+                                    // Preencher card_last4 quando um cartão é selecionado
+                                    if (card && card.last4) {
+                                      form.setValue('card_last4', card.last4);
+                                    } else if (!cardId) {
+                                      form.setValue('card_last4', null);
+                                    }
+                                  }}
+                                  onShowCreateForm={() => setShowCardCreateForm(true)}
+                                  form={form}
+                                  loading={loading}
+                                />
                               </div>
                             </motion.div>
                           )}
@@ -2115,217 +2379,218 @@ export function NewTransactionSheet({
                           )}
                         </AnimatePresence>
                       </div>
-                    </div>
-                  </div>
-                </form>
-              </Form>
-            </div>
-
-            {/* Modal de Confirmação com Overlay sobre o painel */}
-            <AnimatePresence>
-              {showConfirmationDialog && (
-                <>
-                  {/* Overlay sobre o painel */}
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 z-50 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md rounded-l-2xl"
-                    onClick={() => setShowConfirmationDialog(false)}
-                  />
-                  
-                  {/* Modal centralizado dentro do Drawer */}
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute inset-0 z-[60] flex items-center justify-center p-6 pointer-events-none"
-                  >
-                <div 
-                  className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 p-6 max-w-[500px] w-full pointer-events-auto"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="space-y-5">
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">
-                        Por favor, confirme sua transação
-                      </h2>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Revise os dados abaixo antes de confirmar
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {(() => {
-                        const summary = getTransactionSummary();
-                        const isIncome = form.getValues('type') === 'income';
-                        return (
-                          <>
-                            {/* Tipo e Valor - Destaque Principal */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg p-3 border border-purple-200 dark:border-purple-800">
-                                <div className="flex items-center gap-2 mb-1">
-                                  {isIncome ? (
-                                    <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                                  ) : (
-                                    <TrendingDown className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-                                  )}
-                                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tipo</span>
-                                </div>
-                                <p className={cn(
-                                  "text-base font-bold",
-                                  isIncome 
-                                    ? "text-emerald-600 dark:text-emerald-400" 
-                                    : "text-rose-600 dark:text-rose-400"
-                                )}>
-                                  {summary.type}
-                                </p>
-                              </div>
-                              
-                              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-lg p-3 border border-emerald-200 dark:border-emerald-800">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Valor</span>
-                                </div>
-                                <p className="text-base font-bold text-emerald-700 dark:text-emerald-300">
-                                  R$ {summary.value}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Descrição */}
-                            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                              <div className="flex items-center gap-2 mb-2">
-                                <FileText className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Descrição</span>
-                              </div>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                {summary.description}
-                              </p>
-                            </div>
-
-                            {/* Categoria e Método de Pagamento */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <ShoppingBag className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Categoria</span>
-                                </div>
-                                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                  {summary.category}
-                                </p>
-                              </div>
-                              
-                              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <CreditCard className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Pagamento</span>
-                                </div>
-                                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                  {summary.paymentMethod}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Data e Hora */}
-                            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Data e Hora</span>
-                              </div>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                {summary.date}
-                              </p>
-                            </div>
-
-                            {/* Modalidade e Parcelas (se aplicável) */}
-                            {(summary.modality || summary.installments) && (
-                              <div className="grid grid-cols-2 gap-3">
-                                {summary.modality && (
-                                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Modalidade</span>
-                                    </div>
-                                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                                      {summary.modality}
-                                    </p>
-                                  </div>
-                                )}
-                                {summary.installments && (
-                                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <Tag className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Parcelas</span>
-                                    </div>
-                                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                                      {summary.installments}x
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Tags (se houver) */}
-                            {summary.tags.length > 0 && (
-                              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Tag className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tags</span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {summary.tags.map((tag, idx) => (
-                                    <span 
-                                      key={idx} 
-                                      className="px-2.5 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-md text-xs font-medium border border-purple-200 dark:border-purple-800"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-
-                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowConfirmationDialog(false)}
-                        disabled={loading}
-                        className="w-full sm:w-auto"
-                      >
-                        Editar Dados
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="primary"
-                        onClick={handleConfirm}
-                        disabled={loading}
-                        className="w-full sm:w-auto"
-                      >
-                        {loading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Salvando...
-                          </>
-                        ) : (
-                          'Confirmar'
-                        )}
-                      </Button>
-                    </div>
+                    )}
                   </div>
                 </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-          </motion.div>
-        </SheetContent>
+              </form>
+            </Form>
+          </div>
+
+          {/* Modal de Confirmação com Overlay sobre o painel */}
+          <AnimatePresence>
+            {showConfirmationDialog && (
+              <>
+                {/* Overlay sobre o painel */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md rounded-l-2xl"
+                  onClick={() => setShowConfirmationDialog(false)}
+                />
+
+                {/* Modal centralizado dentro do Drawer */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0 z-[60] flex items-center justify-center p-6 pointer-events-none"
+                >
+                  <div
+                    className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 p-6 max-w-[500px] w-full pointer-events-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="space-y-5">
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">
+                          Por favor, confirme sua transação
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Revise os dados abaixo antes de confirmar
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        {(() => {
+                          const summary = getTransactionSummary();
+                          const isIncome = form.getValues('type') === 'income';
+                          return (
+                            <>
+                              {/* Tipo e Valor - Destaque Principal */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg p-3 border border-purple-200 dark:border-purple-800">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {isIncome ? (
+                                      <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                    ) : (
+                                      <TrendingDown className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                                    )}
+                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tipo</span>
+                                  </div>
+                                  <p className={cn(
+                                    "text-base font-bold",
+                                    isIncome
+                                      ? "text-emerald-600 dark:text-emerald-400"
+                                      : "text-rose-600 dark:text-rose-400"
+                                  )}>
+                                    {summary.type}
+                                  </p>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-lg p-3 border border-emerald-200 dark:border-emerald-800">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Valor</span>
+                                  </div>
+                                  <p className="text-base font-bold text-emerald-700 dark:text-emerald-300">
+                                    R$ {summary.value}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Descrição */}
+                              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <FileText className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Descrição</span>
+                                </div>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                  {summary.description}
+                                </p>
+                              </div>
+
+                              {/* Categoria e Método de Pagamento */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <ShoppingBag className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Categoria</span>
+                                  </div>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                    {summary.category}
+                                  </p>
+                                </div>
+
+                                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <CreditCard className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Pagamento</span>
+                                  </div>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                    {summary.paymentMethod}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Data e Hora */}
+                              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Data e Hora</span>
+                                </div>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                  {summary.date}
+                                </p>
+                              </div>
+
+                              {/* Modalidade e Parcelas (se aplicável) */}
+                              {(summary.modality || summary.installments) && (
+                                <div className="grid grid-cols-2 gap-3">
+                                  {summary.modality && (
+                                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Modalidade</span>
+                                      </div>
+                                      <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                                        {summary.modality}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {summary.installments && (
+                                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <Tag className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Parcelas</span>
+                                      </div>
+                                      <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                                        {summary.installments}x
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Tags (se houver) */}
+                              {summary.tags.length > 0 && (
+                                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Tag className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tags</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {summary.tags.map((tag, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="px-2.5 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-md text-xs font-medium border border-purple-200 dark:border-purple-800"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowConfirmationDialog(false)}
+                          disabled={loading}
+                          className="w-full sm:w-auto"
+                        >
+                          Editar Dados
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          onClick={handleConfirm}
+                          disabled={loading}
+                          className="w-full sm:w-auto"
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Salvando...
+                            </>
+                          ) : (
+                            'Confirmar'
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </SheetContent>
     </Sheet>
   );
 }

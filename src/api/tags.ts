@@ -1,6 +1,14 @@
 // api/tags.ts
 import apiClient from './client';
-import { TagsResponse, Tag } from '../types/api';
+import { TagsResponse, Tag, TagTypesResponse } from '../types/api';
+
+/**
+ * Lista todos os tipos de tags disponíveis no sistema
+ */
+export const listTagTypes = async (): Promise<TagTypesResponse> => {
+  const response = await apiClient.get<TagTypesResponse>('/api/v1/tag-types');
+  return response.data;
+};
 
 /**
  * Lista todas as tags de uma organização, opcionalmente filtradas por tipo de tag

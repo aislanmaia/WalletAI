@@ -10,6 +10,7 @@ interface SearchableSelectProps {
   disabled?: boolean;
   searchPlaceholder?: string;
   onOpen?: () => void;
+  allowCreate?: boolean;
 }
 
 export function SearchableSelect({
@@ -20,6 +21,7 @@ export function SearchableSelect({
   disabled = false,
   searchPlaceholder = 'Buscar...',
   onOpen,
+  allowCreate = false,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -117,7 +119,7 @@ export function SearchableSelect({
 
           {/* Lista de opções */}
           <div className="max-h-60 overflow-y-auto">
-            {filteredOptions.length === 0 ? (
+            {filteredOptions.length === 0 && !allowCreate ? (
               <div className="px-3 py-6 text-sm text-center text-muted-foreground">
                 Nenhuma opção encontrada
               </div>
@@ -144,6 +146,22 @@ export function SearchableSelect({
                     </button>
                   </li>
                 ))}
+                {/* Opção para criar novo quando allowCreate está ativo */}
+                {allowCreate && searchQuery && !filteredOptions.some(opt => opt.label.toLowerCase() === searchQuery.toLowerCase()) && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onValueChange(searchQuery);
+                        setIsOpen(false);
+                        setSearchQuery('');
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm rounded-sm hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none transition-colors duration-150 border-t border-border"
+                    >
+                      <span className="text-[#4A56E2]">+</span> Criar "{searchQuery}"
+                    </button>
+                  </li>
+                )}
               </ul>
             )}
           </div>
