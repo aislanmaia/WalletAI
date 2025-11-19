@@ -16,6 +16,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TrendingUp, LayoutGrid, ListOrdered, PieChart, Target, User, LogOut, Plus } from "lucide-react";
 import { PropsWithChildren, useState } from "react";
 import { useAIChat } from "@/hooks/useAIChat";
@@ -198,10 +199,20 @@ export function AppLayout({ children }: PropsWithChildren) {
 
                 {/* Chip Modo Demo - apenas se estiver em demo mode */}
                 {isDemoMode && (
-                  <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs bg-[#E6F0F6] text-[#00A89C] ring-1 ring-[#00C6B8]/30">
-                    <span className="inline-block h-2 w-2 rounded-full bg-[#00C6B8]" />
-                    Modo Demo
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs bg-[#E6F0F6] text-[#00A89C] ring-1 ring-[#00C6B8]/30 cursor-help">
+                          <span className="inline-block h-2 w-2 rounded-full bg-[#00C6B8]" />
+                          Modo Demo
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Você está usando dados simulados.</p>
+                        <p className="text-xs text-muted-foreground">Faça login com outro email para acessar dados reais.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
                 {/* Menu de contexto do usuário */}
                 <DropdownMenu>

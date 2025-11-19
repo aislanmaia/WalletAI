@@ -5,7 +5,7 @@ import { ShoppingCart, Building, Car, Heart, Coffee, ShoppingBag, Plus, FileText
 import { Transaction } from '@/hooks/useFinancialData';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { NewTransactionSheet } from './NewTransactionSheet';
 
 interface RecentTransactionsProps {
@@ -13,37 +13,37 @@ interface RecentTransactionsProps {
   isLoading?: boolean;
 }
 
-const getTransactionIcon = (iconName: string) => {
-  const iconMap = {
-    'shopping-cart': ShoppingCart,
-    'building': Building,
-    'car': Car,
-    'gas-pump': Car,
-    'heart': Heart,
-    'coffee': Coffee,
-    'shopping-bag': ShoppingBag,
-    'dollar-sign': Building
+export const RecentTransactions = memo(function RecentTransactions({ transactions, isLoading }: RecentTransactionsProps) {
+  const getTransactionIcon = (iconName: string) => {
+    const iconMap = {
+      'shopping-cart': ShoppingCart,
+      'building': Building,
+      'car': Car,
+      'gas-pump': Car,
+      'heart': Heart,
+      'coffee': Coffee,
+      'shopping-bag': ShoppingBag,
+      'dollar-sign': Building
+    };
+
+    const Icon = iconMap[iconName as keyof typeof iconMap] || ShoppingBag;
+    return Icon;
   };
 
-  const Icon = iconMap[iconName as keyof typeof iconMap] || ShoppingBag;
-  return Icon;
-};
+  const formatDate = (date: Date): string => {
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-const formatDate = (date: Date): string => {
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) {
+      return `Hoje, ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (diffDays === 1) {
+      return `Ontem, ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      return `${diffDays} dias atrás`;
+    }
+  };
 
-  if (diffDays === 0) {
-    return `Hoje, ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-  } else if (diffDays === 1) {
-    return `Ontem, ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-  } else {
-    return `${diffDays} dias atrás`;
-  }
-};
-
-export function RecentTransactions({ transactions, isLoading }: RecentTransactionsProps) {
   const [isNewTransactionOpen, setIsNewTransactionOpen] = useState(false);
 
   if (isLoading) {
@@ -167,4 +167,4 @@ export function RecentTransactions({ transactions, isLoading }: RecentTransactio
       </div>
     </Card>
   );
-}
+});

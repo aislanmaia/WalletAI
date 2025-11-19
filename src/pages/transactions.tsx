@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useEffect } from 'react';
+import { useOrganization } from '@/hooks/useOrganization';
 
 function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -30,12 +31,15 @@ export default function TransactionsPage() {
 
   const queryClient = useQueryClient();
   const [location] = useLocation();
+  const { activeOrgId } = useOrganization();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['transactions'],
+    queryKey: ['transactions', activeOrgId],
     queryFn: async () => {
-      return await listTransactions();
+      if (!activeOrgId) return [];
+      return await listTransactions({ organization_id: activeOrgId });
     },
+    enabled: !!activeOrgId,
   });
 
   // Expor função para invalidar queries quando estiver nesta rota

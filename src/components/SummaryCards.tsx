@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { FinancialSummary } from '@/hooks/useFinancialData';
 import { Skeleton } from '@/components/ui/skeleton';
+import { memo } from 'react';
 
 interface SummaryCardsProps {
   summary: FinancialSummary;
@@ -10,7 +11,7 @@ interface SummaryCardsProps {
   isEmpty?: boolean;
 }
 
-export function SummaryCards({ summary, isLoading, isEmpty }: SummaryCardsProps) {
+export const SummaryCards = memo(function SummaryCards({ summary, isLoading, isEmpty }: SummaryCardsProps) {
   // Helper para formatar valores
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -133,5 +134,5 @@ export function SummaryCards({ summary, isLoading, isEmpty }: SummaryCardsProps)
       </Card>
     </div>
   );
-}
+});
 
