@@ -35,6 +35,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/hooks/useOrganization";
 import { NewTransactionSheet } from "@/components/NewTransactionSheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export function AppLayout({ children }: PropsWithChildren) {
   const { messages, isProcessing, processUserMessage } = useAIChat();
@@ -47,10 +48,24 @@ export function AppLayout({ children }: PropsWithChildren) {
   const [isGoals] = useRoute("/goals");
   const [isProfile] = useRoute("/profile");
   const [isNewTransactionOpen, setIsNewTransactionOpen] = useState(false);
+  const { toast } = useToast();
 
   const handleLogout = () => {
     signOut();
     setLocation("/login");
+  };
+
+  const handleOrgChange = (orgId: string) => {
+    const org = organizations.find(o => o.id === orgId);
+    selectOrganization(orgId);
+
+    if (org) {
+      toast({
+        title: "Organização alterada",
+        description: `Agora visualizando: ${org.name}`,
+        duration: 2000,
+      });
+    }
   };
 
   const getUserDisplayName = () => {
@@ -183,7 +198,7 @@ export function AppLayout({ children }: PropsWithChildren) {
               <div className="flex items-center gap-3">
                 {/* Organization Selector */}
                 {organizations.length > 0 && (
-                  <Select value={activeOrgId || undefined} onValueChange={selectOrganization}>
+                  <Select value={activeOrgId || undefined} onValueChange={handleOrgChange}>
                     <SelectTrigger className="w-[180px] h-9 rounded-full bg-white/70 ring-1 ring-gray-200 text-sm">
                       <SelectValue placeholder="Selecionar organização" />
                     </SelectTrigger>

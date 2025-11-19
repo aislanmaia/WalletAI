@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
+import { motion } from "framer-motion";
 import Dashboard from "@/pages/dashboard";
 import TransactionsPage from "@/pages/transactions";
 import Login from "@/pages/login";
@@ -16,15 +17,19 @@ const ReportsPage = lazy(() => import("@/pages/reports"));
 const GoalsPage = lazy(() => import("@/pages/goals"));
 const ProfilePage = lazy(() => import("@/pages/profile"));
 
-// Loading fallback component
+// Loading fallback component with animation
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex items-center justify-center min-h-[60vh]"
+    >
       <div className="flex flex-col items-center gap-3">
         <div className="w-8 h-8 border-4 border-[#00C6B8]/30 border-t-[#00A89C] rounded-full animate-spin"></div>
         <p className="text-sm text-gray-500">Carregando...</p>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
