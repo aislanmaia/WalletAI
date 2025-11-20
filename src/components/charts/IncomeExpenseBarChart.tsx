@@ -58,7 +58,7 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
           categoryPercentage: 1.0,
           maxBarThickness: 150,
           // Se tiver muitos dados, deixa responsivo e agrupado. Se poucos, fixa largura e desagrupa (visual "gordo")
-          barThickness: isDenseData ? undefined : 50,
+          barThickness: isDenseData ? 'flex' : 50,
           borderRadius: 4,
           skipNull: true,
           grouped: isDenseData ? true : false,
@@ -70,7 +70,7 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
           barPercentage: 0.9,
           categoryPercentage: 1.0,
           maxBarThickness: 150,
-          barThickness: isDenseData ? undefined : 50,
+          barThickness: isDenseData ? 'flex' : 50,
           borderRadius: 4,
           skipNull: true,
           grouped: isDenseData ? true : false,
