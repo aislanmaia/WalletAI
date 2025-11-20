@@ -26,3 +26,17 @@ export const listTags = async (
   return response.data;
 };
 
+export const createTag = async (
+  organizationId: string,
+  name: string,
+  tagTypeId: string,
+  color?: string
+): Promise<Tag> => {
+  const response = await apiClient.post<Tag>('/api/v1/tags', {
+    organization_id: organizationId,
+    name,
+    tag_type_id: tagTypeId,
+    color,
+  });
+  return response.data;
+};

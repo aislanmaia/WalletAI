@@ -144,6 +144,7 @@ export interface CreateTransactionRequest {
   card_last4?: string | null;
   modality?: 'cash' | 'installment' | null;
   installments_count?: number | null;
+  tag_ids?: string[];
 }
 
 export interface Transaction {

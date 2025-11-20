@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { createTransaction } from '@/api/transactions';
 import { getMyOrganizations } from '@/api/organizations';
-import { listTags, listTagTypes } from '@/api/tags';
+import { listTags, listTagTypes, createTag } from '@/api/tags';
 import { CreateTransactionRequest } from '@/types/api';
 import { handleApiError } from '@/api/client';
 import {
@@ -1467,7 +1467,7 @@ export function NewTransactionSheet({
 
   // Estados para categorias e tags do backend
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
-  const [allTagsFromBackend, setAllTagsFromBackend] = useState<Array<{ type: string; name: string }>>([]);
+  const [allTagsFromBackend, setAllTagsFromBackend] = useState<Array<{ id: string; type: string; name: string }>>([]);
   const [tagTypesFromBackend, setTagTypesFromBackend] = useState<Array<{ id: string; name: string; description: string | null; is_required: boolean; max_per_transaction: number | null }>>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [isClassificationPanelOpen, setIsClassificationPanelOpen] = useState(false);
@@ -1528,7 +1528,8 @@ export function NewTransactionSheet({
         // Separar categorias e outras tags
         const allTags = response.tags
           .filter((tag: { is_active: boolean }) => tag.is_active)
-          .map((tag: { name: string; tag_type: { name: string } }) => ({
+          .map((tag: { id: string; name: string; tag_type: { name: string } }) => ({
+            id: tag.id,
             type: tag.tag_type.name,
             name: tag.name,
           }));
@@ -1613,6 +1614,42 @@ export function NewTransactionSheet({
       setError(null);
       setShowConfirmationDialog(false);
 
+      // Processar tags: buscar IDs existentes ou criar novas tags
+      const tagIds: string[] = [];
+
+      for (const tag of tags) {
+        // Ignorar categorias, pois já são tratadas no campo category
+        if (tag.type === 'category' || tag.type === 'categoria') continue;
+
+        const existingTag = allTagsFromBackend.find(
+          t => t.type.toLowerCase() === tag.type.toLowerCase() &&
+            t.name.toLowerCase() === tag.value.toLowerCase()
+        );
+
+        if (existingTag) {
+          tagIds.push(existingTag.id);
+        } else {
+          // Criar nova tag se não existir
+          const tagType = tagTypesFromBackend.find(
+            tt => tt.name.toLowerCase() === tag.type.toLowerCase()
+          );
+
+          if (tagType) {
+            try {
+              const newTag = await createTag(
+                values.organization_id,
+                tag.value,
+                tagType.id
+              );
+              tagIds.push(newTag.id);
+            } catch (createTagError) {
+              console.error(`Erro ao criar tag ${tag.value}:`, createTagError);
+              // Continuar mesmo se falhar ao criar tag, para não bloquear a transação
+            }
+          }
+        }
+      }
+
       const transactionData: CreateTransactionRequest = {
         organization_id: values.organization_id,
         type: values.type,
@@ -1620,7 +1657,8 @@ export function NewTransactionSheet({
         category: values.category,
         value: values.value,
         payment_method: values.payment_method,
-        date: values.date,
+        date: values.date.split('T')[0], // Enviar apenas a data YYYY-MM-DD
+        tag_ids: tagIds,
         ...(values.payment_method === 'Cartão de Crédito' && {
           card_last4: values.card_last4 || null,
           modality: values.modality || null,
@@ -1637,7 +1675,7 @@ export function NewTransactionSheet({
       setError(typeof errorMessage === 'string' ? errorMessage : String(errorMessage));
       setLoading(false);
     }
-  }, []);
+  }, [tags, allTagsFromBackend, tagTypesFromBackend]);
 
   // Função para confirmar transação (usada no botão e no Enter)
   const handleConfirm = useCallback(() => {
