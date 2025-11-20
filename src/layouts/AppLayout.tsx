@@ -1,4 +1,5 @@
 import { Link, useLocation, useRoute } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -38,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 
 export function AppLayout({ children }: PropsWithChildren) {
+  const queryClient = useQueryClient();
   const { messages, isProcessing, processUserMessage } = useAIChat();
   const { user, signOut, isDemoMode } = useAuth();
   const { organizations, activeOrgId, selectOrganization } = useOrganization();
@@ -276,10 +278,9 @@ export function AppLayout({ children }: PropsWithChildren) {
             open={isNewTransactionOpen}
             onOpenChange={setIsNewTransactionOpen}
             onSuccess={() => {
-              // Invalidar queries de transações se estiver na rota /transactions
-              if (typeof (window as any).__invalidateTransactions === 'function') {
-                (window as any).__invalidateTransactions();
-              }
+              // Invalidar queries para atualizar dados
+              queryClient.invalidateQueries({ queryKey: ['transactions'] });
+              queryClient.invalidateQueries({ queryKey: ['financial-data'] });
             }}
           />
 

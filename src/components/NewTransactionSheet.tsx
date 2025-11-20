@@ -1706,6 +1706,7 @@ export function NewTransactionSheet({
       await createTransaction(transactionData);
       setShowSuccess(true);
       setLoading(false);
+      onSuccess?.(); // Notificar sucesso para invalidação de cache
       // Não fechar automaticamente - aguardar ação do usuário
     } catch (err) {
       const errorMessage = handleApiError(err);
