@@ -1617,9 +1617,43 @@ export function NewTransactionSheet({
       // Processar tags: buscar IDs existentes ou criar novas tags
       const tagIds: string[] = [];
 
+      // 1. Processar a Categoria Principal (Obrigatória no backend)
+      if (values.category) {
+        const categoryTag = allTagsFromBackend.find(
+          t => (t.type.toLowerCase() === 'category' || t.type.toLowerCase() === 'categoria') &&
+            t.name.toLowerCase() === values.category.toLowerCase()
+        );
+
+        if (categoryTag) {
+          tagIds.push(categoryTag.id);
+        } else {
+          // Criar nova tag de categoria
+          const categoryType = tagTypesFromBackend.find(
+            tt => tt.name.toLowerCase() === 'categoria' || tt.name.toLowerCase() === 'category'
+          );
+
+          if (categoryType) {
+            try {
+              const newCategoryTag = await createTag(
+                values.organization_id,
+                values.category,
+                categoryType.id
+              );
+              tagIds.push(newCategoryTag.id);
+            } catch (err) {
+              console.error(`Erro ao criar categoria ${values.category}:`, err);
+            }
+          }
+        }
+      }
+
+      // 2. Processar outras tags
       for (const tag of tags) {
-        // Ignorar categorias, pois já são tratadas no campo category
-        if (tag.type === 'category' || tag.type === 'categoria') continue;
+        // Ignorar se for a mesma tag da categoria principal para evitar duplicidade
+        if ((tag.type === 'category' || tag.type === 'categoria') &&
+          tag.value.toLowerCase() === values.category.toLowerCase()) {
+          continue;
+        }
 
         const existingTag = allTagsFromBackend.find(
           t => t.type.toLowerCase() === tag.type.toLowerCase() &&
@@ -1627,7 +1661,10 @@ export function NewTransactionSheet({
         );
 
         if (existingTag) {
-          tagIds.push(existingTag.id);
+          // Evitar duplicatas
+          if (!tagIds.includes(existingTag.id)) {
+            tagIds.push(existingTag.id);
+          }
         } else {
           // Criar nova tag se não existir
           const tagType = tagTypesFromBackend.find(
