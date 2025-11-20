@@ -33,10 +33,13 @@ export const createTag = async (
   color?: string
 ): Promise<Tag> => {
   const response = await apiClient.post<Tag>('/api/v1/tags', {
-    organization_id: organizationId,
     name,
     tag_type_id: tagTypeId,
     color,
+  }, {
+    params: {
+      organization_id: organizationId
+    }
   });
   return response.data;
 };
