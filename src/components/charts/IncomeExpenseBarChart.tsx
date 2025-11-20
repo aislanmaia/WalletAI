@@ -44,8 +44,10 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
       labels = ['', ...labels, ''];
     }
 
-    // Se tiver muitos dados, voltamos ao comportamento padrão para evitar sobreposição
+    // Calcular largura dinâmica baseada na quantidade de dados
+    // Menos dados = barras mais largas, mais dados = barras mais finas
     const isDenseData = data.length > 6;
+    const barWidth = isDenseData ? Math.max(20, 60 - data.length * 2) : 50;
 
     return {
       labels,
@@ -57,11 +59,12 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
           barPercentage: 0.9,
           categoryPercentage: 1.0,
           maxBarThickness: 150,
-          // Se tiver muitos dados, deixa responsivo e agrupado. Se poucos, fixa largura e desagrupa (visual "gordo")
-          barThickness: isDenseData ? 'flex' : 50,
+          // SEMPRE desagrupado (grouped: false) para evitar que barras sumam quando há valor zero
+          // Ajusta largura dinamicamente para evitar overlap em dados densos
+          barThickness: barWidth,
           borderRadius: 4,
           skipNull: true,
-          grouped: isDenseData ? true : false,
+          grouped: false,
         },
         {
           label: 'Despesas',
@@ -70,10 +73,10 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
           barPercentage: 0.9,
           categoryPercentage: 1.0,
           maxBarThickness: 150,
-          barThickness: isDenseData ? 'flex' : 50,
+          barThickness: barWidth,
           borderRadius: 4,
           skipNull: true,
-          grouped: isDenseData ? true : false,
+          grouped: false,
         }
       ]
     };
