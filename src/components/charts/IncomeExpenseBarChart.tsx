@@ -54,8 +54,10 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
           barPercentage: 0.9,
           categoryPercentage: 1.0,
           maxBarThickness: 150,
+          barThickness: 50,
           borderRadius: 4,
           skipNull: true,
+          grouped: false,
         },
         {
           label: 'Despesas',
@@ -64,8 +66,10 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
           barPercentage: 0.9,
           categoryPercentage: 1.0,
           maxBarThickness: 150,
+          barThickness: 50,
           borderRadius: 4,
           skipNull: true,
+          grouped: false,
         }
       ]
     };
