@@ -27,32 +27,21 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
   const chartData = React.useMemo(() => {
     // Lógica para centralizar barras quando há poucos dados
     let labels = data.map(item => item.month);
-    const minSlots = 6;
+
+    // Se tiver poucos dados, adiciona apenas 1 slot de cada lado para centralizar sem espremer
+    const shouldPad = data.length > 0 && data.length < 5;
 
     // Helper para gerar dados com padding
     const getPaddedData = (accessor: (item: MonthlyData) => number) => {
-      if (data.length >= minSlots || data.length === 0) return data.map(accessor);
+      if (!shouldPad) return data.map(accessor);
 
-      const emptySlots = minSlots - data.length;
-      const leftPadding = Math.floor(emptySlots / 2);
-      const rightPadding = emptySlots - leftPadding;
-
-      return [
-        ...Array(leftPadding).fill(null),
-        ...data.map(accessor),
-        ...Array(rightPadding).fill(null)
-      ];
+      // Adiciona apenas 1 slot vazio de cada lado
+      return [null, ...data.map(accessor), null];
     };
 
     // Aplicar padding nas labels se necessário
-    if (data.length > 0 && data.length < minSlots) {
-      const emptySlots = minSlots - data.length;
-      const leftPadding = Math.floor(emptySlots / 2);
-      const rightPadding = emptySlots - leftPadding;
-
-      const emptyLabelsLeft = Array(leftPadding).fill('');
-      const emptyLabelsRight = Array(rightPadding).fill('');
-      labels = [...emptyLabelsLeft, ...labels, ...emptyLabelsRight];
+    if (shouldPad) {
+      labels = ['', ...labels, ''];
     }
 
     return {
@@ -62,9 +51,9 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
           label: 'Receitas',
           data: getPaddedData(item => item.income),
           backgroundColor: '#10B981',
-          barPercentage: 0.8,
-          categoryPercentage: 0.9,
-          maxBarThickness: 80,
+          barPercentage: 0.9,
+          categoryPercentage: 1.0,
+          maxBarThickness: 150,
           borderRadius: 4,
           skipNull: true,
         },
@@ -72,9 +61,9 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
           label: 'Despesas',
           data: getPaddedData(item => item.expenses),
           backgroundColor: '#F87171',
-          barPercentage: 0.8,
-          categoryPercentage: 0.9,
-          maxBarThickness: 80,
+          barPercentage: 0.9,
+          categoryPercentage: 1.0,
+          maxBarThickness: 150,
           borderRadius: 4,
           skipNull: true,
         }
