@@ -1,4 +1,5 @@
 import { Link, useLocation, useRoute } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -16,6 +17,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TrendingUp, LayoutGrid, ListOrdered, PieChart, Target, User, LogOut, Plus } from "lucide-react";
 import { PropsWithChildren, useState } from "react";
 import { useAIChat } from "@/hooks/useAIChat";
@@ -31,11 +33,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from "@/hooks/useOrganization";
 import { NewTransactionSheet } from "@/components/NewTransactionSheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export function AppLayout({ children }: PropsWithChildren) {
+  const queryClient = useQueryClient();
   const { messages, isProcessing, processUserMessage } = useAIChat();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isDemoMode } = useAuth();
+  const { organizations, activeOrgId, selectOrganization } = useOrganization();
   const [, setLocation] = useLocation();
   const [isDashboard] = useRoute("/");
   const [isTransactions] = useRoute("/transactions");
@@ -43,10 +50,24 @@ export function AppLayout({ children }: PropsWithChildren) {
   const [isGoals] = useRoute("/goals");
   const [isProfile] = useRoute("/profile");
   const [isNewTransactionOpen, setIsNewTransactionOpen] = useState(false);
+  const { toast } = useToast();
 
   const handleLogout = () => {
     signOut();
     setLocation("/login");
+  };
+
+  const handleOrgChange = (orgId: string) => {
+    const org = organizations.find(o => o.id === orgId);
+    selectOrganization(orgId);
+
+    if (org) {
+      toast({
+        title: "Organização alterada",
+        description: `Agora visualizando: ${org.name}`,
+        duration: 2000,
+      });
+    }
   };
 
   const getUserDisplayName = () => {
@@ -79,7 +100,7 @@ export function AppLayout({ children }: PropsWithChildren) {
   };
 
   return (
-      <SidebarProvider>
+    <SidebarProvider>
       <Sidebar className="gradient-sidebar text-white shadow-2xl !rounded-r-2xl border-none">
         <div className="flex h-full flex-col">
           <SidebarHeader>
@@ -177,11 +198,39 @@ export function AppLayout({ children }: PropsWithChildren) {
               </div>
               <div className="flex-1 max-w-xl md:max-w-2xl xl:max-w-3xl" />
               <div className="flex items-center gap-3">
-                {/* Chip Modo Demo - ciano da paleta */}
-                <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs bg-[#E6F0F6] text-[#00A89C] ring-1 ring-[#00C6B8]/30">
-                  <span className="inline-block h-2 w-2 rounded-full bg-[#00C6B8]" />
-                  Modo Demo
-                </div>
+                {/* Organization Selector */}
+                {organizations.length > 0 && (
+                  <Select value={activeOrgId || undefined} onValueChange={handleOrgChange}>
+                    <SelectTrigger className="w-[180px] h-9 rounded-full bg-white/70 ring-1 ring-gray-200 text-sm">
+                      <SelectValue placeholder="Selecionar organização" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {organizations.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Chip Modo Demo - apenas se estiver em demo mode */}
+                {isDemoMode && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs bg-[#E6F0F6] text-[#00A89C] ring-1 ring-[#00C6B8]/30 cursor-help">
+                          <span className="inline-block h-2 w-2 rounded-full bg-[#00C6B8]" />
+                          Modo Demo
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Você está usando dados simulados.</p>
+                        <p className="text-xs text-muted-foreground">Faça login com outro email para acessar dados reais.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
                 {/* Menu de contexto do usuário */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -229,10 +278,10 @@ export function AppLayout({ children }: PropsWithChildren) {
             open={isNewTransactionOpen}
             onOpenChange={setIsNewTransactionOpen}
             onSuccess={() => {
-              // Invalidar queries de transações se estiver na rota /transactions
-              if (typeof (window as any).__invalidateTransactions === 'function') {
-                (window as any).__invalidateTransactions();
-              }
+              // Invalidar queries para atualizar dados
+              // Usar exact: false para garantir que pegue ['transactions', activeOrgId]
+              queryClient.invalidateQueries({ queryKey: ['transactions'] });
+              queryClient.invalidateQueries({ queryKey: ['financial-data'] });
             }}
           />
 

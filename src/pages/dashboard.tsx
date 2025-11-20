@@ -10,23 +10,22 @@ import { useFinancialData } from '@/hooks/useFinancialData';
 import { useAIChat } from '@/hooks/useAIChat';
 import { Button } from '@/components/ui/button';
 import { isDemoMode } from '@/config/demo';
+import { PageTransition } from '@/components/PageTransition';
 
 export default function Dashboard() {
   const [chartsLoading, setChartsLoading] = useState(true);
-  
-  const { 
-    summary, 
-    expenseCategories, 
-    monthlyData, 
+
+  const {
+    summary,
+    expenseCategories,
+    monthlyData,
     recentTransactions,
     weeklyExpenseHeatmap,
     loading,
     error,
-    addTransaction,
-    refreshData,
     isDemoMode: isDemo
   } = useFinancialData();
-  
+
   const { processUserMessage } = useAIChat();
 
   // Simulate chart loading
@@ -38,21 +37,18 @@ export default function Dashboard() {
   }, []);
 
   const handleSendChatMessage = async (message: string) => {
-    await processUserMessage(message, addTransaction);
-    // Recarregar dados após processar mensagem
-    await refreshData();
+    await processUserMessage(message, () => { });
+    // Note: Data refresh will happen automatically via React Query
   };
 
   const handleRetry = () => {
-    refreshData();
+    // Data will auto-refresh via React Query invalidation
+    window.location.reload();
   };
 
   return (
-    <div className="min-h-screen pb-32 bg-transparent">
-      {/* Header removido: top bar agora no layout global */}
-
-      {/* Main Dashboard */}
-      <main className="mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 max-w-7xl xl:max-w-[90rem] 2xl:max-w-[96rem]">
+    <PageTransition>
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 max-w-7xl xl:max-w-[95%] 2xl:max-w-[1800px]">
         {/* Loading State */}
         {loading && !isDemo && (
           <div className="mb-8 p-4 bg-[#E6F0F6] supports-[backdrop-filter]:bg-[#E6F0F6]/80 backdrop-blur border border-[#00C6B8]/30 rounded-xl">
@@ -82,13 +78,13 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-6 xl:grid-cols-12 gap-6 xl:gap-8">
           {/* Receitas vs Despesas - card largo */}
           <div className="lg:col-span-6 xl:col-span-8 order-2 lg:order-none">
-            <Suspense fallback={<div className="h-[320px] xl:h-[380px] 2xl:h-[420px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+            <Suspense fallback={<div className="h-[320px] xl:h-[380px] 2xl:h-[420px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}>
               <IncomeExpenseBarChart data={monthlyData} isLoading={chartsLoading} />
             </Suspense>
           </div>
           {/* Pizza - card alto com gradiente leve */}
           <div className="lg:col-span-6 xl:col-span-4 order-1 lg:order-none">
-            <Suspense fallback={<div className="h-[320px] xl:h-[360px] 2xl:h-[380px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+            <Suspense fallback={<div className="h-[320px] xl:h-[360px] 2xl:h-[380px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}>
               <ExpensePieChart data={expenseCategories} isLoading={chartsLoading} />
             </Suspense>
           </div>
@@ -97,7 +93,7 @@ export default function Dashboard() {
         {/* Segunda fileira Bento */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-6 xl:grid-cols-12 gap-6 xl:gap-8">
           <div className="lg:col-span-6 xl:col-span-8">
-            <Suspense fallback={<div className="h-[360px] xl:h-[380px] 2xl:h-[420px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}> 
+            <Suspense fallback={<div className="h-[360px] xl:h-[380px] 2xl:h-[420px] rounded-2xl bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 animate-pulse" />}>
               <WeekdayStackedBarChart data={weeklyExpenseHeatmap} isLoading={chartsLoading} />
             </Suspense>
           </div>
@@ -105,9 +101,8 @@ export default function Dashboard() {
             <RecentTransactions transactions={recentTransactions} />
           </div>
         </div>
-      </main>
-
-      {/* Chat movido para o Layout (Outlet) */}
-    </div>
+      </div>
+    </PageTransition>
   );
 }
+

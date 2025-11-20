@@ -144,6 +144,7 @@ export interface CreateTransactionRequest {
   card_last4?: string | null;
   modality?: 'cash' | 'installment' | null;
   installments_count?: number | null;
+  tag_ids?: string[];
 }
 
 export interface Transaction {
@@ -155,9 +156,12 @@ export interface Transaction {
   value: number;
   payment_method: string;
   date: string; // ISO date string
+  // Tags retornadas como array (formato real da API)
+  tags?: Tag[];
 }
 
 export interface ListTransactionsQuery {
+  organization_id?: string;
   type?: 'income' | 'expense';
   category?: string;
   payment_method?: string;
@@ -223,9 +227,89 @@ export interface ChatResponse {
   processing_time: number; // segundos
 }
 
+// ===== TAG TYPES =====
+export interface TagType {
+  id: string;
+  name: string;
+  description: string | null;
+  is_required: boolean;
+  max_per_transaction: number | null;
+}
+
+export interface TagTypesResponse {
+  tag_types: TagType[];
+}
+
+// ===== TAGS =====
+export interface TagTypeInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  is_required: boolean;
+  max_per_transaction: number | null;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  tag_type: TagTypeInfo;
+  color: string | null;
+  is_default: boolean;
+  is_active: boolean;
+  organization_id: string;
+}
+
+export interface CreateTagRequest {
+  name: string;
+  tag_type_id: string;
+  color?: string | null;
+}
+
+export interface UpdateTagRequest {
+  name: string;
+  tag_type_id: string;
+  color?: string | null;
+}
+
+export interface TagsResponse {
+  tags: Tag[];
+}
+
 // ===== ERROS =====
 export interface ApiError {
   detail: string;
   status?: number;
+}
+
+// ===== METAS (GOALS) =====
+export interface Goal {
+  id: string;
+  organization_id: string;
+  name: string;
+  description?: string;
+  target_amount: number;
+  current_amount: number;
+  target_date?: string; // ISO date string
+  category?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateGoalRequest {
+  organization_id: string;
+  name: string;
+  description?: string;
+  target_amount: number;
+  target_date?: string;
+  category?: string;
+}
+
+export interface UpdateGoalRequest {
+  name?: string;
+  description?: string;
+  target_amount?: number;
+  current_amount?: number;
+  target_date?: string;
+  category?: string;
 }
 

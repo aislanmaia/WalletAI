@@ -1,10 +1,13 @@
 // Configuração do modo demo
+import { DEMO_USER_EMAIL } from '@/hooks/useAuth';
+
 export const DEMO_CONFIG = {
-  // Flag para ativar modo demo
-  ENABLE_DEMO: import.meta.env.VITE_DEMO_MODE === 'true' || !import.meta.env.VITE_API_BASE_URL,
+  // Email especial que ativa modo demo
+  DEMO_USER_EMAIL,
+
   // Flag para ativar dados de saldo negativo (para demonstração)
   ENABLE_NEGATIVE_BALANCE: import.meta.env.VITE_NEGATIVE_BALANCE === 'true',
-  
+
   // Dados de demonstração realistas
   DEMO_DATA: {
     summary: {
@@ -14,7 +17,7 @@ export const DEMO_CONFIG = {
       savingsGoal: 2500.00,
       savingsProgress: 78
     },
-    
+
     expenseCategories: [
       { name: 'Alimentação', amount: 1250, color: '#1E40AF' },
       { name: 'Transporte', amount: 800, color: '#059669' },
@@ -23,7 +26,7 @@ export const DEMO_CONFIG = {
       { name: 'Saúde', amount: 680, color: '#0284C7' },
       { name: 'Outros', amount: 470, color: '#7C3AED' }
     ],
-    
+
     monthlyData: [
       { month: 'Jan', income: 7800, expenses: 5200 },
       { month: 'Fev', income: 8200, expenses: 5800 },
@@ -32,7 +35,7 @@ export const DEMO_CONFIG = {
       { month: 'Mai', income: 8100, expenses: 5900 },
       { month: 'Jun', income: 8200, expenses: 5750 }
     ],
-    
+
     // Dados para gráfico Sankey (fluxo de dinheiro)
     moneyFlow: {
       nodes: [
@@ -79,7 +82,7 @@ export const DEMO_CONFIG = {
         { source: 'freelance', target: 'technology', value: 350 }
       ]
     },
-    
+
     // Dados para heatmap de gastos por dia da semana
     weeklyExpenseHeatmap: {
       categories: ['Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Outros'],
@@ -95,7 +98,7 @@ export const DEMO_CONFIG = {
         [78, 45, 0, 98, 0, 25]      // Domingo
       ]
     },
-    
+
     // Dados detalhados de transações por dia da semana
     dailyTransactions: {
       monday: [
@@ -139,7 +142,7 @@ export const DEMO_CONFIG = {
         { category: 'Outros', amount: 25, description: 'Sobremesa' }
       ]
     },
-    
+
     recentTransactions: [
       {
         id: '1',
@@ -190,9 +193,9 @@ export const DEMO_CONFIG = {
   }
 };
 
-// Função para verificar se está em modo demo
-export const isDemoMode = (): boolean => {
-  return DEMO_CONFIG.ENABLE_DEMO;
+// Função para verificar se está em modo demo baseado no email do usuário
+export const isDemoMode = (userEmail?: string | null): boolean => {
+  return userEmail === DEMO_USER_EMAIL;
 };
 
 // Função para obter dados de demo
@@ -233,6 +236,6 @@ export const getDemoData = () => {
       }
     };
   }
-  
+
   return DEMO_CONFIG.DEMO_DATA;
 }; 

@@ -1,13 +1,13 @@
 import React from 'react';
 import { Bar } from 'react-chartjs-2';
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend 
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
 } from 'chart.js';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,21 +24,63 @@ interface IncomeExpenseBarChartProps {
 }
 
 export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpenseBarChartProps) => {
-  const chartData = React.useMemo(() => ({
-    labels: data.map(item => item.month),
-    datasets: [
-      {
-        label: 'Receitas',
-        data: data.map(item => item.income),
-        backgroundColor: '#10B981',
-      },
-      {
-        label: 'Despesas',
-        data: data.map(item => item.expenses),
-        backgroundColor: '#F87171',
-      }
-    ]
-  }), [data]);
+  const chartData = React.useMemo(() => {
+    // Lógica para centralizar barras quando há poucos dados
+    let labels = data.map(item => item.month);
+
+    // Se tiver poucos dados, adiciona apenas 1 slot de cada lado para centralizar sem espremer
+    const shouldPad = data.length > 0 && data.length < 5;
+
+    // Helper para gerar dados com padding
+    const getPaddedData = (accessor: (item: MonthlyData) => number) => {
+      if (!shouldPad) return data.map(accessor);
+
+      // Adiciona apenas 1 slot vazio de cada lado
+      return [null, ...data.map(accessor), null];
+    };
+
+    // Aplicar padding nas labels se necessário
+    if (shouldPad) {
+      labels = ['', ...labels, ''];
+    }
+
+    // Calcular largura dinâmica baseada na quantidade de dados
+    // Menos dados = barras mais largas, mais dados = barras mais finas
+    const isDenseData = data.length > 6;
+    const barWidth = isDenseData ? Math.max(20, 60 - data.length * 2) : 50;
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Receitas',
+          data: getPaddedData(item => item.income),
+          backgroundColor: '#10B981',
+          barPercentage: 0.9,
+          categoryPercentage: 1.0,
+          maxBarThickness: 150,
+          // SEMPRE desagrupado (grouped: false) para evitar que barras sumam quando há valor zero
+          // Ajusta largura dinamicamente para evitar overlap em dados densos
+          barThickness: barWidth,
+          borderRadius: 4,
+          skipNull: true,
+          grouped: false,
+        },
+        {
+          label: 'Despesas',
+          data: getPaddedData(item => item.expenses),
+          backgroundColor: '#F87171',
+          barPercentage: 0.9,
+          categoryPercentage: 1.0,
+          maxBarThickness: 150,
+          barThickness: barWidth,
+          borderRadius: 4,
+          skipNull: true,
+          grouped: false,
+        }
+      ]
+    };
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -72,7 +114,31 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
         </div>
       </div>
       <div className="chart-container">
-        <Bar data={chartData} options={barChartOptions} />
+        <Bar
+          data={chartData}
+          options={{
+            ...barChartOptions,
+            maintainAspectRatio: false,
+            scales: {
+              ...barChartOptions.scales,
+              x: {
+                ...barChartOptions.scales?.x,
+                grid: {
+                  display: false,
+                }
+              },
+              y: {
+                ...barChartOptions.scales?.y,
+                border: {
+                  display: false
+                },
+                grid: {
+                  color: 'rgba(0, 0, 0, 0.05)',
+                }
+              }
+            }
+          }}
+        />
       </div>
     </Card>
   );

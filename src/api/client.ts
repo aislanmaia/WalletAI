@@ -39,15 +39,58 @@ apiClient.interceptors.response.use(
 // Função auxiliar para tratar erros da API
 export const handleApiError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
-    const apiError = error.response?.data as ApiError;
-    return apiError?.detail || error.message || 'Erro desconhecido';
+    const responseData = error.response?.data;
+    
+    // Se for um objeto ApiError com detail
+    if (responseData && typeof responseData === 'object' && 'detail' in responseData) {
+      const apiError = responseData as ApiError;
+      if (typeof apiError.detail === 'string') {
+        return apiError.detail;
+      }
+    }
+    
+    // Se for um array de erros de validação do Pydantic
+    if (Array.isArray(responseData)) {
+      const errors = responseData
+        .map((err: any) => {
+          if (typeof err === 'object' && err.msg) {
+            return err.msg;
+          }
+          return String(err);
+        })
+        .filter(Boolean);
+      return errors.length > 0 ? errors.join(', ') : 'Erro de validação';
+    }
+    
+    // Se for um objeto de erro de validação do Pydantic
+    if (responseData && typeof responseData === 'object') {
+      // Tentar extrair mensagens de erro
+      const errorObj = responseData as any;
+      if (errorObj.msg && typeof errorObj.msg === 'string') {
+        return errorObj.msg;
+      }
+      if (errorObj.message && typeof errorObj.message === 'string') {
+        return errorObj.message;
+      }
+    }
+    
+    return error.message || 'Erro desconhecido';
   }
   
   if (error instanceof Error) {
     return error.message;
   }
   
-  return 'Erro desconhecido';
+  // Se for um objeto genérico, converter para string
+  if (typeof error === 'object' && error !== null) {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Erro desconhecido';
+    }
+  }
+  
+  return String(error || 'Erro desconhecido');
 };
 
 export default apiClient;

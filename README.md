@@ -54,10 +54,8 @@ Crie um arquivo `.env` na raiz do projeto:
 
 ```env
 # URL da API Backend
+# URL da API Backend
 VITE_API_BASE_URL=http://localhost:5000
-
-# Modo Demo (true/false)
-VITE_DEMO_MODE=true
 
 # Outras configurações
 VITE_APP_NAME=WalletAI
@@ -77,8 +75,34 @@ npm run build
 npm run preview
 
 # Verificar tipos TypeScript
+# Verificar tipos TypeScript
 npm run check
+
+# Rodar testes unitários
+npm run test:unit
 ```
+
+## 🧪 Testes
+
+O projeto utiliza **Vitest** e **MSW** para testes unitários e de integração.
+
+```bash
+# Rodar todos os testes unitários
+npm run test:unit
+
+# Rodar testes com interface gráfica
+npm run test:ui
+
+# Rodar testes com cobertura
+npm run test:coverage
+```
+
+## 🚀 Novas Funcionalidades
+
+- **Relatórios (`/reports`)**: Visualizações detalhadas de fluxo de caixa e categorias.
+- **Metas (`/goals`)**: Gerenciamento de metas financeiras com acompanhamento de progresso.
+- **Perfil (`/profile`)**: Gestão de conta e organizações.
+
 
 ## 🔌 Integração com Backend
 
@@ -113,10 +137,10 @@ Este frontend é projetado para trabalhar com um backend separado. As APIs esper
 - **Chat IA**: Assistente inteligente para gestão financeira
 
 ### Modo Demo
-- **Dados Demonstrativos**: Dados realistas para apresentações
-- **Interface Interativa**: Transações podem ser adicionadas/removidas
-- **Indicador Visual**: Badge "Modo Demo" no header
-- **Ativação Automática**: Quando não há backend configurado
+- **Ativação**: Faça login com o email `demo@walletai.app` (qualquer senha).
+- **Dados Demonstrativos**: Dados realistas para apresentações.
+- **Interface Interativa**: Transações podem ser adicionadas/removidas (localmente).
+- **Indicador Visual**: Badge "Modo Demo" no header.
 
 ### Chat IA
 - **Interface de chat fixa** na parte inferior

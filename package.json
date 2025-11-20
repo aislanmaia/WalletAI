@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "check": "tsc"
+    "check": "tsc",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:unit": "vitest run --reporter=verbose",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest watch"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -69,14 +74,21 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "20.16.11",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.2",
+    "@vitest/ui": "^4.0.10",
     "autoprefixer": "^10.4.20",
+    "jsdom": "^27.2.0",
+    "msw": "^2.12.2",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "typescript": "5.6.3",
-    "vite": "^5.4.19"
+    "vite": "^5.4.19",
+    "vitest": "^4.0.10"
   }
 }
