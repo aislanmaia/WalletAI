@@ -279,6 +279,7 @@ export function AppLayout({ children }: PropsWithChildren) {
             onOpenChange={setIsNewTransactionOpen}
             onSuccess={() => {
               // Invalidar queries para atualizar dados
+              // Usar exact: false para garantir que pegue ['transactions', activeOrgId]
               queryClient.invalidateQueries({ queryKey: ['transactions'] });
               queryClient.invalidateQueries({ queryKey: ['financial-data'] });
             }}

@@ -43,18 +43,7 @@ export default function TransactionsPage() {
     enabled: !!activeOrgId,
   });
 
-  // Expor função para invalidar queries quando estiver nesta rota
-  useEffect(() => {
-    if (location === '/transactions') {
-      // Armazenar função de invalidação no window para acesso global
-      (window as any).__invalidateTransactions = () => {
-        queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      };
-    }
-    return () => {
-      delete (window as any).__invalidateTransactions;
-    };
-  }, [location, queryClient]);
+
 
   // Converter Transaction da API para o formato esperado (amount positivo/negativo)
   const transactionsWithAmount = useMemo(() => {
