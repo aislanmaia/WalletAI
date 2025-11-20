@@ -44,6 +44,9 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
       labels = ['', ...labels, ''];
     }
 
+    // Se tiver muitos dados, voltamos ao comportamento padrão para evitar sobreposição
+    const isDenseData = data.length > 6;
+
     return {
       labels,
       datasets: [
@@ -54,10 +57,11 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
           barPercentage: 0.9,
           categoryPercentage: 1.0,
           maxBarThickness: 150,
-          barThickness: 50,
+          // Se tiver muitos dados, deixa responsivo e agrupado. Se poucos, fixa largura e desagrupa (visual "gordo")
+          barThickness: isDenseData ? undefined : 50,
           borderRadius: 4,
           skipNull: true,
-          grouped: false,
+          grouped: isDenseData ? true : false,
         },
         {
           label: 'Despesas',
@@ -66,10 +70,10 @@ export const IncomeExpenseBarChart = React.memo(({ data, isLoading }: IncomeExpe
           barPercentage: 0.9,
           categoryPercentage: 1.0,
           maxBarThickness: 150,
-          barThickness: 50,
+          barThickness: isDenseData ? undefined : 50,
           borderRadius: 4,
           skipNull: true,
-          grouped: false,
+          grouped: isDenseData ? true : false,
         }
       ]
     };
