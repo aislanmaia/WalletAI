@@ -53,11 +53,17 @@ export interface WeeklyExpenseHeatmap {
 export function calculateSummary(transactions: Transaction[]): FinancialSummary {
     const income = transactions
         .filter((t) => t.type === 'income')
-        .reduce((acc, t) => acc + t.value, 0);
+        .reduce((acc, t) => {
+            const value = typeof t.value === 'string' ? parseFloat(t.value) : t.value;
+            return acc + value;
+        }, 0);
 
     const expenses = transactions
         .filter((t) => t.type === 'expense')
-        .reduce((acc, t) => acc + t.value, 0);
+        .reduce((acc, t) => {
+            const value = typeof t.value === 'string' ? parseFloat(t.value) : t.value;
+            return acc + value;
+        }, 0);
 
     const balance = income - expenses;
 
@@ -84,10 +90,13 @@ export function groupByMonth(transactions: Transaction[]): MonthlyData[] {
         }
 
         const data = monthMap.get(monthKey)!;
+        // IMPORTANTE: Converter para número pois o backend pode retornar como string
+        const numericValue = typeof t.value === 'string' ? parseFloat(t.value) : t.value;
+
         if (t.type === 'income') {
-            data.income += t.value;
+            data.income += numericValue;
         } else {
-            data.expenses += t.value;
+            data.expenses += numericValue;
         }
     });
 
@@ -142,7 +151,8 @@ export function groupByCategory(transactions: Transaction[]): ExpenseCategory[] 
     expenses.forEach((t) => {
         const category = getMainCategory(t);
         const current = categoryMap.get(category) || 0;
-        categoryMap.set(category, current + t.value);
+        const value = typeof t.value === 'string' ? parseFloat(t.value) : t.value;
+        categoryMap.set(category, current + value);
     });
 
     // Cores padrão para categorias (pode ser melhorado)
@@ -184,7 +194,8 @@ export function generateMoneyFlow(transactions: Transaction[]): MoneyFlow {
     const incomeByMethod = new Map<string, number>();
     incomes.forEach((t) => {
         const method = t.payment_method || 'Receita';
-        incomeByMethod.set(method, (incomeByMethod.get(method) || 0) + t.value);
+        const value = typeof t.value === 'string' ? parseFloat(t.value) : t.value;
+        incomeByMethod.set(method, (incomeByMethod.get(method) || 0) + value);
     });
 
     incomeByMethod.forEach((value, method) => {
@@ -199,7 +210,8 @@ export function generateMoneyFlow(transactions: Transaction[]): MoneyFlow {
     const expenseByCategory = new Map<string, number>();
     expenses.forEach((t) => {
         const category = getMainCategory(t);
-        expenseByCategory.set(category, (expenseByCategory.get(category) || 0) + t.value);
+        const value = typeof t.value === 'string' ? parseFloat(t.value) : t.value;
+        expenseByCategory.set(category, (expenseByCategory.get(category) || 0) + value);
     });
 
     expenseByCategory.forEach((value, category) => {
@@ -211,8 +223,14 @@ export function generateMoneyFlow(transactions: Transaction[]): MoneyFlow {
     });
 
     // Criar links (simplificado: distribuir receitas proporcionalmente para despesas)
-    const totalIncome = incomes.reduce((acc, t) => acc + t.value, 0);
-    const totalExpenses = expenses.reduce((acc, t) => acc + t.value, 0);
+    const totalIncome = incomes.reduce((acc, t) => {
+        const value = typeof t.value === 'string' ? parseFloat(t.value) : t.value;
+        return acc + value;
+    }, 0);
+    const totalExpenses = expenses.reduce((acc, t) => {
+        const value = typeof t.value === 'string' ? parseFloat(t.value) : t.value;
+        return acc + value;
+    }, 0);
 
     if (totalIncome > 0 && totalExpenses > 0) {
         incomeByMethod.forEach((incomeValue, incomeMethod) => {
@@ -265,7 +283,8 @@ export function generateWeeklyHeatmap(transactions: Transaction[]): WeeklyExpens
         const categoryIndex = categories.indexOf(category);
 
         if (categoryIndex >= 0) {
-            data[dayIndex][categoryIndex] += t.value;
+            const value = typeof t.value === 'string' ? parseFloat(t.value) : t.value;
+            data[dayIndex][categoryIndex] += value;
         }
     });
 
